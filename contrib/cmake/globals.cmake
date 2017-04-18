@@ -1,0 +1,16 @@
+
+compilerName()
+
+execute_process(COMMAND "python" "dist.py" WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/contrib/cmake OUTPUT_VARIABLE DIST OUTPUT_STRIP_TRAILING_WHITESPACE)
+set(COMPILER_VERSION ${CMAKE_CXX_COMPILER_VERSION})
+set(ARCH ${DIST}.${CMAKE_HOST_SYSTEM_PROCESSOR})
+
+message(STATUS "compiler name: " ${COMPILER_NAME})
+message(STATUS "compiler version: " ${COMPILER_VERSION})
+
+message(STATUS "processor: " ${CMAKE_HOST_SYSTEM_PROCESSOR})
+message(STATUS "arch: " ${ARCH})
+
+set(APP base)
+set(CORTEX_VERSION 9.17.1)
+set(CORTEX_MAJOR_VERSION 9)
