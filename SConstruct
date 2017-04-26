@@ -1936,7 +1936,7 @@ if env["WITH_GL"] and doConfigure :
 
 	c = Configure( glEnv )
 
-	if not c.CheckLibWithHeader( env.subst( "GLEW$GLEW_LIB_SUFFIX" ), "glew.h", "CXX" ) :
+	if not c.CheckLibWithHeader( env.subst( "GLEW$GLEW_LIB_SUFFIX" ), "GL/glew.h", "CXX" ) :
 
 		sys.stderr.write( "WARNING : GLEW library not found, not building IECoreGL - check GLEW_INCLUDE_PATH and GLEW_LIB_PATH.\n" )
 		c.Finish()
