@@ -54,6 +54,8 @@ std::pair<PrimitiveVariable, PrimitiveVariable> calculateTangents( const MeshPri
 	const std::string &position = "P"
 );
 
+MeshPrimitivePtr deleteFaces( const MeshPrimitive *meshPrimitive, const std::string &primvar );
+
 } // namespace MeshAlgo
 } // namespace IECore
 
