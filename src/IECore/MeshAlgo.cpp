@@ -1,6 +1,9 @@
 #include <assert.h>
 #include <algorithm>
 
+#include "tbb/concurrent_vector.h"
+#include "tbb/parallel_for.h"
+
 #include "boost/mpl/and.hpp"
 #include "OpenEXR/ImathVec.h"
 
@@ -11,6 +14,8 @@
 #include "IECore/DespatchTypedData.h"
 #include "IECore/TypeTraits.h"
 #include "IECore/private/PrimitiveAlgoUtils.h"
+
+#include "IECore/private/CountToOffset.h"
 
 using namespace IECore;
 using namespace Imath;
@@ -495,6 +500,215 @@ std::string TexturePrimVarNames::indicesName() const
 	return uvSetName + "Indices";
 }
 
+struct Basis
+{
+	Basis()
+	{
+	}
+
+	Basis( V3f normal, V3f uTangent, V3f vTangent ) : normal( normal ), uTangent( uTangent ), vTangent( vTangent )
+	{
+	}
+
+	V3f normal;
+	V3f uTangent;
+	V3f vTangent;
+};
+
+struct CountFacesPerUniqueTangentBlock
+{
+	CountFacesPerUniqueTangentBlock(
+		const std::vector<int> &vertIds,
+		const std::vector<int> &stIndices,
+		std::vector<tbb::atomic<int> > &totals
+	) :
+		m_totals(totals),
+		m_vertIds(vertIds),
+		m_stIndices(stIndices)
+	{}
+
+	void operator()( const tbb::blocked_range<std::size_t> &r ) const
+	{
+		for( size_t faceIndex = r.begin(); faceIndex < r.end(); faceIndex++ )
+		{
+			size_t fvi0 = faceIndex * 3;
+			size_t fvi1 = fvi0 + 1;
+			size_t fvi2 = fvi1 + 1;
+
+			int i0 = m_stIndices[fvi0];
+			int i1 = m_stIndices[fvi1];
+			int i2 = m_stIndices[fvi2];
+
+			m_totals[i0].fetch_and_increment();
+			m_totals[i1].fetch_and_increment();
+			m_totals[i2].fetch_and_increment();
+		}
+	}
+
+	std::vector<tbb::atomic<int> > &m_totals;
+	const std::vector<int> &m_vertIds;
+	const std::vector<int> &m_stIndices;
+};
+
+
+struct CalculateFaceTangentBlock
+{
+	CalculateFaceTangentBlock(
+		std::vector<Basis> &collector,
+		std::vector<tbb::atomic<int> > &counts,
+		std::vector<int> &offsets,
+		const std::vector<int> &vertsPerFace,
+		const std::vector<int> &vertIds,
+		const std::vector<int> &stIndices,
+		const std::vector<V3f> &points,
+		const std::vector<float> &u,
+		const std::vector<float> &v )
+		: m_collector(collector),
+		  m_counts(counts),
+		  m_offsets(offsets),
+		  m_vertsPerFace(vertsPerFace),
+		  m_vertIds(vertIds),
+		  m_stIndices(stIndices),
+		  m_points( points ),
+		  m_u( u ),
+		  m_v( v )
+	{
+	}
+
+	void operator()( const tbb::blocked_range<std::size_t> &r ) const
+	{
+		for( size_t faceIndex = r.begin(); faceIndex < r.end(); faceIndex++ )
+		{
+			assert( m_vertsPerFace[faceIndex] == 3 );
+
+			// indices into the facevarying data for this face
+			size_t fvi0 = faceIndex * 3;
+			size_t fvi1 = fvi0 + 1;
+			size_t fvi2 = fvi1 + 1;
+			assert( fvi2 < m_vertIds.size() );
+			assert( fvi2 < m_u.size() );
+			assert( fvi2 < m_v.size() );
+
+			// positions for each vertex of this face
+			const V3f &p0 = m_points[m_vertIds[fvi0]];
+			const V3f &p1 = m_points[m_vertIds[fvi1]];
+			const V3f &p2 = m_points[m_vertIds[fvi2]];
+
+			// uv coordinates for each vertex of this face
+			const V2f uv0( m_u[fvi0], m_v[fvi0] );
+			const V2f uv1( m_u[fvi1], m_v[fvi1] );
+			const V2f uv2( m_u[fvi2], m_v[fvi2] );
+
+			// compute tangents and normal for this face
+			const V3f e0 = p1 - p0;
+			const V3f e1 = p2 - p0;
+
+			const V2f e0uv = uv1 - uv0;
+			const V2f e1uv = uv2 - uv0;
+
+			V3f tangent = ( e0 * -e1uv.y + e1 * e0uv.y ).normalized();
+			V3f bitangent = ( e0 * -e1uv.x + e1 * e0uv.x ).normalized();
+
+			V3f normal = ( p2 - p1 ).cross( p0 - p1 );
+			normal.normalize();
+
+			Basis basis(normal, tangent, bitangent);
+
+			int i0 = m_stIndices[fvi0];
+			int i1 = m_stIndices[fvi1];
+			int i2 = m_stIndices[fvi2];
+
+			int o0 = m_counts[i0].fetch_and_increment();
+			int o1 = m_counts[i1].fetch_and_increment();
+			int o2 = m_counts[i2].fetch_and_increment();
+
+			// and accumlate them into the computation so far
+			m_collector[m_offsets[i0] + o0] = basis;
+			m_collector[m_offsets[i1] + o1] = basis;
+			m_collector[m_offsets[i2] + o2] = basis;
+		}
+
+	}
+	std::vector<Basis > &m_collector;
+	std::vector<tbb::atomic<int> > &m_counts;
+	const std::vector<int> &m_offsets;
+	const std::vector<int> &m_vertsPerFace;
+	const std::vector<int> &m_vertIds;
+	const std::vector<int> &m_stIndices;
+	const std::vector<V3f> &m_points;
+	const std::vector<float> &m_u;
+	const std::vector<float> &m_v;
+};
+
+struct CalculateVertexTangentBlock
+{
+	CalculateVertexTangentBlock(
+		const std::vector<Basis> &collector,
+		const std::vector<tbb::atomic<int> > &counts,
+		const std::vector<int> &offsets,
+		std::vector<V3f> &uTangents,
+		std::vector<V3f> &vTangents,
+		std::vector<V3f> &normals,
+		bool orthoTangents
+		)
+	: m_collector(collector),
+	  m_counts(counts),
+	  m_offsets(offsets),
+	  m_uTangents(uTangents),
+	  m_vTangents(vTangents),
+	  m_normals(normals),
+	  m_orthoTangents(orthoTangents)
+
+	{}
+
+	void operator()( const tbb::blocked_range<std::size_t> &r ) const
+	{
+		// normalize and orthogonalize everything
+		for( size_t i = r.begin(); i < r.end(); i++ )
+		{
+			for (size_t j = 0; j <(size_t) m_counts[i]; ++j)
+			{
+				m_normals[i] += m_collector[m_offsets[i] + j].normal;
+				m_uTangents[i] += m_collector[m_offsets[i] + j].uTangent;
+				m_vTangents[i] += m_collector[m_offsets[i] + j].vTangent;
+			}
+
+			m_normals[i].normalize();
+			m_uTangents[i].normalize();
+			m_vTangents[i].normalize();
+
+			// Make uTangent/vTangent orthogonal to normal
+			m_uTangents[i] -= m_normals[i] * m_uTangents[i].dot( m_normals[i] );
+			m_vTangents[i] -= m_normals[i] * m_vTangents[i].dot( m_normals[i] );
+
+			m_uTangents[i].normalize();
+			m_vTangents[i].normalize();
+
+			if( m_orthoTangents )
+			{
+				m_vTangents[i] -= m_uTangents[i] * m_vTangents[i].dot( m_uTangents[i] );
+				m_vTangents[i].normalize();
+			}
+
+			// Ensure we have set of basis vectors (n, uT, vT) with the correct handedness.
+			if( m_uTangents[i].cross( m_vTangents[i] ).dot( m_normals[i] ) < 0.0f )
+			{
+				m_uTangents[i] *= -1.0f;
+			}
+		}
+	}
+
+	const std::vector<Basis > &m_collector;
+	const std::vector<tbb::atomic<int> > &m_counts;
+	const std::vector<int> &m_offsets;
+
+	std::vector<V3f> &m_uTangents;
+	std::vector<V3f> &m_vTangents;
+	std::vector<V3f> &m_normals;
+	bool m_orthoTangents;
+};
+
+
 } // anonymous namespace
 
 namespace IECore
@@ -568,83 +782,27 @@ std::pair<PrimitiveVariable, PrimitiveVariable> calculateTangents(
 	std::vector<V3f> vTangents( numUniqueTangents, V3f( 0 ) );
 	std::vector<V3f> normals( numUniqueTangents, V3f( 0 ) );
 
-	for( size_t faceIndex = 0; faceIndex < vertsPerFace.size(); faceIndex++ )
-	{
-		assert( vertsPerFace[faceIndex] == 3 );
+	std::vector<tbb::atomic<int> > totals( numUniqueTangents );
+	CountFacesPerUniqueTangentBlock countFacesPerUniqueTangentBlock(vertIds, stIndices, totals);
 
-		// indices into the facevarying data for this face
-		size_t fvi0 = faceIndex * 3;
-		size_t fvi1 = fvi0 + 1;
-		size_t fvi2 = fvi1 + 1;
-		assert( fvi2 < vertIds.size() );
-		assert( fvi2 < u.size() );
-		assert( fvi2 < v.size() );
+	tbb::parallel_for(tbb::blocked_range<std::size_t>(0, vertsPerFace.size()), countFacesPerUniqueTangentBlock);
 
-		// positions for each vertex of this face
-		const V3f &p0 = points[vertIds[fvi0]];
-		const V3f &p1 = points[vertIds[fvi1]];
-		const V3f &p2 = points[vertIds[fvi2]];
+	std::vector<int> uniqueTangentsOffsets(totals.size() + 1); // additional element so we always calculate number of vertices using offset[index + 1] - offset[index]
+	IECore::Private::CalculateOffsetsFromCounts<tbb::atomic<int> > calculateOffsets(totals, uniqueTangentsOffsets);
+	tbb::parallel_scan( tbb::blocked_range<size_t>(0, totals.size()), calculateOffsets );
 
-		// uv coordinates for each vertex of this face
-		const V2f uv0( u[fvi0], v[fvi0] );
-		const V2f uv1( u[fvi1], v[fvi1] );
-		const V2f uv2( u[fvi2], v[fvi2] );
+	// calculate the final offset outside the tbb loop to reduce the need for branching in the loop body
+	uniqueTangentsOffsets[uniqueTangentsOffsets.size()-1] = uniqueTangentsOffsets[uniqueTangentsOffsets.size() - 2] + totals[totals.size() - 1];
 
-		// compute tangents and normal for this face
-		const V3f e0 = p1 - p0;
-		const V3f e1 = p2 - p0;
+	std::vector<Basis> collector( calculateOffsets.m_acc );
+	std::vector<tbb::atomic<int> > counts( numUniqueTangents );
 
-		const V2f e0uv = uv1 - uv0;
-		const V2f e1uv = uv2 - uv0;
+	// calculate vertex tangents and a
+	CalculateFaceTangentBlock calculateFaceTangentBlock(collector, counts, uniqueTangentsOffsets, vertsPerFace, vertIds, stIndices, points, u, v);
+	tbb::parallel_for(tbb::blocked_range<std::size_t>(0, vertsPerFace.size()), calculateFaceTangentBlock);
 
-		V3f tangent = ( e0 * -e1uv.y + e1 * e0uv.y ).normalized();
-		V3f bitangent = ( e0 * -e1uv.x + e1 * e0uv.x ).normalized();
-
-		V3f normal = ( p2 - p1 ).cross( p0 - p1 );
-		normal.normalize();
-
-		// and accumlate them into the computation so far
-		uTangents[stIndices[fvi0]] += tangent;
-		uTangents[stIndices[fvi1]] += tangent;
-		uTangents[stIndices[fvi2]] += tangent;
-
-		vTangents[stIndices[fvi0]] += bitangent;
-		vTangents[stIndices[fvi1]] += bitangent;
-		vTangents[stIndices[fvi2]] += bitangent;
-
-		normals[stIndices[fvi0]] += normal;
-		normals[stIndices[fvi1]] += normal;
-		normals[stIndices[fvi2]] += normal;
-
-	}
-
-	// normalize and orthogonalize everything
-	for( size_t i = 0; i < uTangents.size(); i++ )
-	{
-		normals[i].normalize();
-
-		uTangents[i].normalize();
-		vTangents[i].normalize();
-
-		// Make uTangent/vTangent orthogonal to normal
-		uTangents[i] -= normals[i] * uTangents[i].dot( normals[i] );
-		vTangents[i] -= normals[i] * vTangents[i].dot( normals[i] );
-
-		uTangents[i].normalize();
-		vTangents[i].normalize();
-
-		if( orthoTangents )
-		{
-			vTangents[i] -= uTangents[i] * vTangents[i].dot( uTangents[i] );
-			vTangents[i].normalize();
-		}
-
-		// Ensure we have set of basis vectors (n, uT, vT) with the correct handedness.
-		if( uTangents[i].cross( vTangents[i] ).dot( normals[i] ) < 0.0f )
-		{
-			uTangents[i] *= -1.0f;
-		}
-	}
+	CalculateVertexTangentBlock calculateVertexTangentBlock(collector, counts, uniqueTangentsOffsets, uTangents, vTangents, normals, orthoTangents);
+	tbb::parallel_for(tbb::blocked_range<std::size_t>(0, uTangents.size()), calculateVertexTangentBlock);
 
 	// convert the tangents back to facevarying data and add that to the mesh
 	V3fVectorDataPtr fvUD = new V3fVectorData();
