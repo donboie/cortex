@@ -39,6 +39,8 @@
 #include "boost/type_traits/is_same.hpp"
 #include "boost/utility/enable_if.hpp"
 
+#include "tbb/tbb.h"
+
 #include "IECore/MatrixMultiplyOp.h"
 #include "IECore/SimpleTypedData.h"
 #include "IECore/TransformationMatrixData.h"
@@ -73,6 +75,27 @@ static TypeId matrixTypes[] =
 	TransformationMatrixdDataTypeId,
 	InvalidTypeId
 };
+
+
+namespace
+{
+	template<typename T1, typename T2>
+	struct TransformBlock
+	{
+		TransformBlock(T1 a, T2* b) : m_a(a), m_b(b) {}
+
+		void operator() ( const tbb::blocked_range<std::size_t>& r) const
+		{
+			for ( std::size_t i = r.begin(); i != r.end(); i++ )
+			{
+				m_b[i] *= m_a;
+			}
+		}
+
+		T1 m_a;
+		T2* m_b;
+	};
+} // namespace
 
 MatrixMultiplyOp::MatrixMultiplyOp()
 	:	ModifyOp(
@@ -131,22 +154,18 @@ struct MultiplyFunctor
 		GeometricData::Interpretation mode = data->getInterpretation();
 		typename U::ValueType::iterator beginIt = data->writable().begin();
 		typename U::ValueType::iterator endIt = data->writable().end();
+		T m;
 		if ( mode==GeometricData::Point || mode==GeometricData::Vector )
 		{
-			for ( typename U::ValueType::iterator it = beginIt; it != endIt; it++ )
-			{
-				*it *= matrix;
-			}
+			m = matrix;
 		}
-		else if ( mode == GeometricData::Normal )
+		if ( mode == GeometricData::Normal )
 		{
-			T m = matrix.inverse();
+			m = matrix.inverse();
 			m.transpose();
-			for ( typename U::ValueType::iterator it = beginIt; it != endIt; it++ )
-			{
-				*it *= matrix;
-			}
 		}
+
+		tbb::parallel_for(tbb::blocked_range<std::size_t>(0, data->writable().size()), TransformBlock<T, typename U::ValueType::value_type> (m, &data->writable()[0]));
 	}
 
 	template< typename T, typename U >
