@@ -34,20 +34,179 @@
 
 #include "boost/format.hpp"
 
+#include "tbb/tbb.h"
+
 #include "IECore/MeshNormalsOp.h"
 #include "IECore/DespatchTypedData.h"
 #include "IECore/CompoundParameter.h"
+#include "IECore/private/CountToOffset.h"
 
 using namespace IECore;
 using namespace std;
 
 IE_CORE_DEFINERUNTIMETYPED( MeshNormalsOp );
 
+namespace
+{
+
+
+//! calculate per face normal
+template<typename VectorType>
+struct CalculateFaceNormals
+{
+	CalculateFaceNormals(
+		const vector<int> &vertsPerFace,
+		const vector<int> &vertexOffsets,
+		const vector<int> &vertIds,
+		const vector<VectorType> &points,
+		vector<VectorType> &outputNormals)
+		: m_vertsPerFace(vertsPerFace),
+		m_vertexOffsets(vertexOffsets),
+		m_vertIds(vertIds),
+		m_points(points),
+		m_outputNormals(outputNormals)
+	{
+	}
+
+	void operator()( const tbb::blocked_range<std::size_t>& r ) const
+	{
+		for (size_t i = r.begin(); i != r.end(); ++i)
+		{
+			// calculate the face normal. note that this method is very naive, and doesn't
+			// cope with colinear vertices or concave faces - we could use polygonNormal() from
+			// PolygonAlgo.h to deal with that, but currently we'd prefer to avoid the overhead.
+			const VectorType &p0 = m_points[m_vertIds[m_vertexOffsets[i]]];
+			const VectorType &p1 = m_points[m_vertIds[m_vertexOffsets[i] + 1]];
+			const VectorType &p2 = m_points[m_vertIds[m_vertexOffsets[i] + 2]];
+
+			VectorType normal = (p2-p1).cross(p0-p1);
+			normal.normalize();
+
+			m_outputNormals[i] = normal;
+		}
+	}
+
+	const vector<int> &m_vertsPerFace;
+	const vector<int> &m_vertexOffsets;
+	const vector<int> &m_vertIds;
+	const std::vector<VectorType> &m_points;
+
+	std::vector<VectorType> &m_outputNormals;
+};
+
+struct CountFacesPerVertexBlock
+{
+	CountFacesPerVertexBlock(
+		const std::vector<int>& vertexOffsets,
+		const vector<int> &vertIds,
+		std::vector<tbb::atomic<int> >& counts
+	)
+		: m_vertexOffsets(vertexOffsets),
+		m_vertIds(vertIds),
+		m_counts(counts)
+	{
+	}
+
+	void operator()( const tbb::blocked_range<std::size_t>& r ) const
+	{
+		for( size_t f = r.begin(); f != r.end(); ++f )
+		{
+			for (size_t v = 0; v < (size_t) (m_vertexOffsets[f + 1] - m_vertexOffsets[f]); ++v)
+			{
+				int vertexIndex = m_vertIds[m_vertexOffsets[f] + v];
+				m_counts[vertexIndex].fetch_and_increment();
+			}
+		}
+	}
+
+	const vector<int> &m_vertexOffsets;
+	const vector<int> &m_vertIds;
+
+	std::vector<tbb::atomic<int> > &m_counts;
+};
+
+struct ConnectedFacesByVertexBlock
+{
+	ConnectedFacesByVertexBlock(
+		const std::vector<int>& vertexOffsets,
+		const vector<int> &vertIds,
+		std::vector<int>& facesByVertex,
+		std::vector<tbb::atomic<int> >& counts,
+		const std::vector<int> &offsets)
+		: m_vertexOffsets(vertexOffsets),
+		m_vertIds(vertIds),
+		m_facesByVertex(facesByVertex),
+		m_counts(counts),
+		m_offsets(offsets)
+	{}
+
+	void operator()( const tbb::blocked_range<std::size_t>& r ) const
+	{
+		for (size_t f = r.begin(); f != r.end(); ++f)
+		{
+			for (size_t v = 0; v < (size_t) (m_vertexOffsets[f + 1] - m_vertexOffsets[f]); ++v)
+			{
+				int vertexIndex = m_vertIds[m_vertexOffsets[f] + v];
+				int index = m_counts[vertexIndex].fetch_and_increment();
+
+				m_facesByVertex[m_offsets[vertexIndex] + index] = f;
+			}
+		}
+	}
+
+	const vector<int> &m_vertexOffsets;
+	const vector<int> &m_vertIds;
+
+	std::vector<int> &m_facesByVertex;
+	std::vector<tbb::atomic<int> > &m_counts;
+	const std::vector<int> &m_offsets;
+};
+
+template<typename VectorType>
+struct AverageFaceNormalsBlock
+{
+	AverageFaceNormalsBlock(
+		const std::vector<int> &facesByVertex,
+		const std::vector<tbb::atomic<int> > &counts,
+		const std::vector<int> &offsets,
+		const std::vector<VectorType>& faceNormals,
+		std::vector<VectorType>& vertexNormals)
+		: m_facesByVertex(facesByVertex),
+		m_counts(counts),
+		m_offsets(offsets),
+		m_faceNormals(faceNormals),
+		m_vertexNormals(vertexNormals)
+	{}
+
+	void operator()( const tbb::blocked_range<std::size_t>& r ) const
+	{
+		for (size_t v = r.begin(); v != r.end(); ++v)
+		{
+			m_vertexNormals[v] = VectorType(0);
+			for (size_t f = 0; f < m_counts[v]; ++f )
+			{
+				m_vertexNormals[v] += m_faceNormals[m_facesByVertex[m_offsets[v] + f]];
+			}
+
+			m_vertexNormals[v].normalize();
+		}
+	}
+
+	const std::vector<int >& m_facesByVertex;
+	const std::vector<tbb::atomic<int> > &m_counts;
+	const std::vector<int> &m_offsets;
+
+	const std::vector<VectorType>& m_faceNormals;
+	std::vector<VectorType>& m_vertexNormals;
+};
+
+} // namespace
+
 MeshNormalsOp::MeshNormalsOp() : MeshPrimitiveOp( "Calculates vertex normals for a mesh." )
 {
 	/// \todo Add this parameter to a member variable and update pPrimVarNameParameter() functions.
 	StringParameterPtr pPrimVarNameParameter = new StringParameter(
-		"pPrimVarName",	
+		"pPrimVarName",
 		"Input primitive variable name.",
 		"P"
 	);
@@ -140,46 +299,45 @@ struct MeshNormalsOp::CalculateNormals
 			normals.resize( points.size(), Vec( 0 ) );
 		}
 
-		// loop over the faces
-		const int *vertId = &(vertIds[0]);
-		for( vector<int>::const_iterator it = vertsPerFace.begin(); it!=vertsPerFace.end(); it++ )
+		// 1) calculate vertex offsets for parallel gather of vertex normals
+		std::vector<int> offsets(vertsPerFace.size() + 1); // additional element so we always calculate number of vertices using offset[index + 1] - offset[index]
+		IECore::Private::CalculateOffsetsFromCounts<int> calculateVertexOffsets(vertsPerFace, offsets);
+		tbb::parallel_scan( tbb::blocked_range<size_t>(0, vertsPerFace.size()), calculateVertexOffsets );
+
+		// calculate the final offset outside the tbb loop to reduce the need for branching in the loop body
+		offsets[offsets.size()-1] = offsets[offsets.size() - 2] + vertsPerFace[vertsPerFace.size() - 1];
+
+		// 2) calculate face normals
+		std::vector<Vec> faceNormals( vertsPerFace.size() );
+		tbb::parallel_for( tbb::blocked_range<size_t>(0, vertsPerFace.size()), CalculateFaceNormals<Vec>(vertsPerFace, offsets, vertIds, points, faceNormals));
+
+		if (m_interpolation == PrimitiveVariable::Vertex)
 		{
-			// calculate the face normal. note that this method is very naive, and doesn't
-			// cope with colinear vertices or concave faces - we could use polygonNormal() from
-			// PolygonAlgo.h to deal with that, but currently we'd prefer to avoid the overhead.
-			const Vec &p0 = points[*vertId];
-			const Vec &p1 = points[*(vertId+1)];
-			const Vec &p2 = points[*(vertId+2)];
+			std::vector<tbb::atomic<int> > totals( points.size() );
+			CountFacesPerVertexBlock countFacesPerVertexBlock(offsets, vertIds, totals);
+			tbb::parallel_for( tbb::blocked_range<size_t>(0, vertsPerFace.size()), countFacesPerVertexBlock);
 
-			Vec normal = (p2-p1).cross(p0-p1);
-			normal.normalize();
+			std::vector<int> vertexOffsets(totals.size() + 1); // additional element so we always calculate number of vertices using offset[index + 1] - offset[index]
+			IECore::Private::CalculateOffsetsFromCounts<tbb::atomic<int> > calculateOffsets(totals, vertexOffsets);
+			tbb::parallel_scan( tbb::blocked_range<size_t>(0, totals.size()), calculateOffsets );
 
-			if( m_interpolation == PrimitiveVariable::Uniform )
-			{
-				normals.push_back( normal );
-				vertId += *it;
-			}
-			else
-			{
-				// accumulate the face normal onto each of the vertices
-				// for this face.
-				for( int i=0; i<*it; ++i )
-				{
-					normals[*vertId] += normal;
-					++vertId;
-				}
-			}
+			// calculate the final offset outside the tbb loop to reduce the need for branching in the loop body
+			vertexOffsets[vertexOffsets.size()-1] = vertexOffsets[vertexOffsets.size() - 2] + totals[totals.size() - 1];
+
+			std::vector<int> facesByVertex( calculateOffsets.m_acc );
+			std::vector<tbb::atomic<int> > counts( points.size() );
+
+			ConnectedFacesByVertexBlock connectedFacesByVertexBlock(offsets, vertIds, facesByVertex, counts, vertexOffsets);
+			tbb::parallel_for( tbb::blocked_range<size_t>(0, vertsPerFace.size()), connectedFacesByVertexBlock);
+
+			AverageFaceNormalsBlock<Vec> averageFaceNormalsBlock(facesByVertex, counts, vertexOffsets, faceNormals, normals );
+			tbb::parallel_for( tbb::blocked_range<size_t>(0, points.size()), averageFaceNormalsBlock);
+		}
+		else if (m_interpolation == PrimitiveVariable::Uniform)
+		{
+			normals.swap( faceNormals );
 		}
 
-		// normalize each of the vertex normals
-		if( m_interpolation == PrimitiveVariable::Vertex )
-		{
-			for( typename VecContainer::iterator it=normals.begin(), eIt=normals.end(); it != eIt; ++it )
-			{
-				it->normalize();
-			}
-		}
-		
 		return normalsData;
 	}
 
@@ -218,7 +376,7 @@ void MeshNormalsOp::modifyTypedPrimitive( MeshPrimitive * mesh, const CompoundOb
 	}
 
 	const PrimitiveVariable::Interpolation interpolation = static_cast<PrimitiveVariable::Interpolation>( operands->member<IntData>( "interpolation" )->readable() );
-	
+
 	CalculateNormals f( mesh->verticesPerFace(), mesh->vertexIds(), interpolation );
 	DataPtr n = despatchTypedData<CalculateNormals, TypeTraits::IsVec3VectorTypedData, HandleErrors>( pvIt->second.data.get(), f );
 
