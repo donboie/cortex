@@ -1,7 +1,16 @@
 pipeline {
     agent any
      stages 
-    {    stage('Build') 
+    {   
+        stage('Requirements')
+        {
+            steps
+            {
+                sh 'wget https://dl.bintray.com/boostorg/release/1.65.1/source/boost_1_65_1.tar.gz'
+                sh 'tar xvf boost_1_65_1.tar.gz'
+            }
+        } 
+        stage('Build') 
         {
             steps 
             {
