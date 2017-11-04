@@ -5,7 +5,7 @@ pipeline {
         {
             steps 
             {
-                echo 'TEST'
+                sh 'scons install DEBUG=1'
             }
         }
     }
