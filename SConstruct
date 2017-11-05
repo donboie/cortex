@@ -1060,6 +1060,8 @@ env.Prepend(
 	]
 )
 
+print env.Dump()
+
 if env["PLATFORM"]=="darwin" :
 	# necessary to fix errors from boost/numeric/interval.hpp
 	env.Append( CXXFLAGS = [ "-D__USE_ISOC99" ] )
