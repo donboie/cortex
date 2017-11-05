@@ -30,7 +30,7 @@ pipeline {
         {
             steps 
             {
-                sh 'scons install DEBUG=1'
+                sh 'scons install DEBUG=1 BOOST_INCLUDE_PATH=$WORKSPACE/build/include BOOST_LIB_PATH=$WORKSPACE/build/lib'
             }
         }
     }
