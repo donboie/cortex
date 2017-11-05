@@ -21,7 +21,7 @@ pipeline {
                 sh """wget https://dl.bintray.com/boostorg/release/1.65.1/source/boost_1_65_1.tar.gz
                 tar xvf boost_1_65_1.tar.gz
                 cd boost_1_65_1
-                ./bootstrap.sh --with-python==$WORKSPACE/build/bin/python --with-python-root=$WORKSPACE/build --without-libraries=log
+                ./bootstrap.sh --prefix=$WORKSPACE/build --with-python==$WORKSPACE/build/bin/python --with-python-root=$WORKSPACE/build --without-libraries=log
                 ./bjam -d+2 -j 4 cxxflags="-std=c++11" variant=release link=shared threading=multi install"""
             }
         } 
