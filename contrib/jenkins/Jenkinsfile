@@ -9,8 +9,8 @@ pipeline {
                 sh """wget https://www.python.org/ftp/python/2.7.13/Python-2.7.13.tgz
                 tar xvf Python-2.7.13.tgz
                 cd Python-2.7.13
-                ./configure --enable-shared --enable-unicode=ucs4
-	            make clean && make && make
+                ./configure --enable-shared --prefix=$WORKSPACE/build --enable-unicode=ucs4
+	            make clean && make && make install
                 """
             }
         }
@@ -21,8 +21,8 @@ pipeline {
                 sh """wget https://dl.bintray.com/boostorg/release/1.65.1/source/boost_1_65_1.tar.gz
                 tar xvf boost_1_65_1.tar.gz
                 cd boost_1_65_1
-                ./bootstrap.sh --without-libraries=log
-                ./bjam -d+2 -j 4 cxxflags="-std=c++11" variant=release link=shared threading=multi"""
+                ./bootstrap.sh --with-python==$WORKSPACE/build/bin/python --with-python-root=$WORKSPACE/build --without-libraries=log
+                ./bjam -d+2 -j 4 cxxflags="-std=c++11" variant=release link=shared threading=multi install"""
             }
         } 
         stage('Build') 
