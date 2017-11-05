@@ -40,7 +40,7 @@ pipeline {
             steps 
             {
                 sh """
-		scons install DEBUG=1 BOOST_LIB_PATH=$WORKSPACE/build/lib BOOST_INCLUDE_PATH=$WORKSPACE/build/include
+		scons install DEBUG=1 BOOST_LIB_SUFFIX= BOOST_LIB_PATH=$WORKSPACE/build/lib BOOST_INCLUDE_PATH=$WORKSPACE/build/include
 		"""
             }
         }
