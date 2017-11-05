@@ -2,6 +2,15 @@ pipeline {
     agent any
      stages 
     {   
+	stage('Check') 
+        {
+            steps 
+            {
+                sh """
+		scons -version
+		"""
+            }
+        }
         stage('Python')
         {
             steps
@@ -30,7 +39,9 @@ pipeline {
         {
             steps 
             {
-                sh """scons install DEBUG=1 BOOST_LIB_PATH=$WORKSPACE/build/lib BOOST_INCLUDE_PATH=$WORKSPACE/build/include"""
+                sh """
+		scons install DEBUG=1 BOOST_LIB_PATH=$WORKSPACE/build/lib BOOST_INCLUDE_PATH=$WORKSPACE/build/include
+		"""
             }
         }
     }
