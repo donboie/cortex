@@ -75,7 +75,8 @@ pipeline {
                 OPENEXR_INCLUDE_PATH=$WORKSPACE/build/include \\
                 OPENEXR_LIB_PATH=$WORKSPACE/build/lib \\
                 ILMBASE_INCLUDE_PATH=$WORKSPACE/build/include \\
-                ILMBASE_LIB_PATH=$WORKSPACE/build/lib
+                ILMBASE_LIB_PATH=$WORKSPACE/build/lib \\
+                ENV_VARS_TO_IMPORT=LD_LIBRARY_PATH 
                 """
             }
         }
