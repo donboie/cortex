@@ -65,28 +65,3 @@ pipeline {
         }
     }
 }
-
-
-o.Add(
-	"OPENEXR_INCLUDE_PATH",
-	"The path to the OpenEXR include directory.",
-	"/usr/include/OpenEXR",
-)
-
-o.Add(
-	"OPENEXR_LIB_PATH",
-	"The path to the OpenEXR lib directory.",
-	"/usr/lib",
-)
-
-o.Add(
-	"ILMBASE_INCLUDE_PATH",
-	"The path to the IlmBase include directory.",
-	"$OPENEXR_INCLUDE_PATH",
-)
-
-o.Add(
-	"ILMBASE_LIB_PATH",
-	"The path to the IlmBase lib directory.",
-	"$OPENEXR_LIB_PATH",
-)
