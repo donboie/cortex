@@ -18,6 +18,7 @@ pipeline {
                 tar xvf openexr-2.2.0.tar.gz
                 cd $WORKSPACE/openexr-2.2.0
                 ./configure --prefix=$BUILD_DIR && make clean && make && make install
+                """
             }
         }
         stage('Python')
