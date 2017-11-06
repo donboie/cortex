@@ -52,9 +52,41 @@ pipeline {
             steps 
             {
                 sh """
-                scons install DEBUG=1 BOOST_LIB_SUFFIX= BOOST_LIB_PATH=$WORKSPACE/build/lib BOOST_INCLUDE_PATH=$WORKSPACE/build/include
+                scons install DEBUG=1 \ 
+                BOOST_LIB_SUFFIX= \
+                BOOST_INCLUDE_PATH=$WORKSPACE/build/include \
+                BOOST_LIB_PATH=$WORKSPACE/build/lib \
+                OPENEXR_INCLUDE_PATH=$WORKSPACE/build/include \
+                OPENEXR_LIB_PATH=$WORKSPACE/build/lib \
+                ILMBASE_INCLUDE_PATH=$WORKSPACE/build/include \ 
+                ILMBASE_LIB_PATH=$WORKSPACE/build/lib
                 """
             }
         }
     }
 }
+
+
+o.Add(
+	"OPENEXR_INCLUDE_PATH",
+	"The path to the OpenEXR include directory.",
+	"/usr/include/OpenEXR",
+)
+
+o.Add(
+	"OPENEXR_LIB_PATH",
+	"The path to the OpenEXR lib directory.",
+	"/usr/lib",
+)
+
+o.Add(
+	"ILMBASE_INCLUDE_PATH",
+	"The path to the IlmBase include directory.",
+	"$OPENEXR_INCLUDE_PATH",
+)
+
+o.Add(
+	"ILMBASE_LIB_PATH",
+	"The path to the IlmBase lib directory.",
+	"$OPENEXR_LIB_PATH",
+)
