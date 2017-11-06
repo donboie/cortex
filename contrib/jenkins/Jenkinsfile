@@ -66,6 +66,7 @@ pipeline {
             steps 
             {
                 sh """
+                export LD_LIBRARY_PATH=$WORKSPACE/build/lib
                 scons install DEBUG=1 \\
                 PYTHON_CONFIG=$WORKSPACE/build/bin/python-config \\
                 BOOST_LIB_SUFFIX= \\
