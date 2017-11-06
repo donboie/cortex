@@ -67,14 +67,14 @@ pipeline {
             {
                 sh """
                 scons install DEBUG=1 \\
+                PYTHON_CONFIG=$WORKSPACE/build/bin/python-config \\
                 BOOST_LIB_SUFFIX= \\
                 BOOST_INCLUDE_PATH=$WORKSPACE/build/include \\
                 BOOST_LIB_PATH=$WORKSPACE/build/lib \\
                 OPENEXR_INCLUDE_PATH=$WORKSPACE/build/include \\
                 OPENEXR_LIB_PATH=$WORKSPACE/build/lib \\
-                ILMBASE_INCLUDE_PATH=$WORKSPACE/build/include \\ 
-                ILMBASE_LIB_PATH=$WORKSPACE/build/lib \\
-                PYTHON_CONFIG=$WORKSPACE/build/bin/python-config
+                ILMBASE_INCLUDE_PATH=$WORKSPACE/build/include \\
+                ILMBASE_LIB_PATH=$WORKSPACE/build/lib
                 """
             }
         }
