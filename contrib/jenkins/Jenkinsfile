@@ -2,6 +2,20 @@ pipeline {
     agent any
      stages 
     {   
+        stage('TBB')
+        {
+            steps
+            {
+                sh """
+                wget --no-clobber https://github.com/01org/tbb/archive/4.4.6.tar.gz
+                tar xvf 4.4.6.tar.gz
+                cd 4.4.6
+                make clean && make stdver=c++11
+                cp -r include/tbb $WORKSPACE/build/include
+                cp build/*_release/*.so* $WORKSPACE/build/lib
+                """
+            }
+        }
         stage('OpenEXR')
         {
             steps
