@@ -2,13 +2,22 @@ pipeline {
     agent any
      stages 
     {   
-	stage('Check') 
+        stage('OpenEXR')
         {
-            steps 
+            steps
             {
                 sh """
-		scons -version
-		"""
+                wget --no-clobber http://download.savannah.nongnu.org/releases/openexr/ilmbase-2.2.0.tar.gz
+                tar xvf ilmbase-2.2.0.tar.gz
+                cd ilmbase-2.2.0
+                ./configure --prefix=$WORKSPACE/build && make clean && make && make install
+                
+                export LD_LIBRARY_PATH=$WORKSPACE/build/lib
+
+                wget --no-clobber http://download.savannah.nongnu.org/releases/openexr/openexr-2.2.0.tar.gz
+                tar xvf openexr-2.2.0.tar.gz
+                cd $WORKSPACE/openexr-2.2.0
+                ./configure --prefix=$BUILD_DIR && make clean && make && make install
             }
         }
         stage('Python')
@@ -19,7 +28,7 @@ pipeline {
                 tar xvf Python-2.7.13.tgz
                 cd Python-2.7.13
                 ./configure --enable-shared --prefix=$WORKSPACE/build --enable-unicode=ucs4
-	            make clean && make && make install
+                make clean && make && make install
                 """
             }
         }
@@ -30,18 +39,18 @@ pipeline {
                 sh """wget --no-clobber https://dl.bintray.com/boostorg/release/1.65.1/source/boost_1_65_1.tar.gz
                 tar xvf boost_1_65_1.tar.gz
                 cd boost_1_65_1
-		export CPLUS_INCLUDE_PATH=$WORKSPACE/build/include/python2.7
+                export CPLUS_INCLUDE_PATH=$WORKSPACE/build/include/python2.7
                 ./bootstrap.sh --prefix=$WORKSPACE/build --with-python==$WORKSPACE/build/bin/python --with-python-root=$WORKSPACE/build --without-libraries=log
                 ./bjam -d+2 -j 4 cxxflags="-std=c++11" variant=release link=shared threading=multi install"""
             }
-        } 
+        }
         stage('Build') 
         {
             steps 
             {
                 sh """
-		scons install DEBUG=1 BOOST_LIB_SUFFIX= BOOST_LIB_PATH=$WORKSPACE/build/lib BOOST_INCLUDE_PATH=$WORKSPACE/build/include
-		"""
+                scons install DEBUG=1 BOOST_LIB_SUFFIX= BOOST_LIB_PATH=$WORKSPACE/build/lib BOOST_INCLUDE_PATH=$WORKSPACE/build/include
+                """
             }
         }
     }
