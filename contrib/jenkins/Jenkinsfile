@@ -2,6 +2,15 @@ pipeline {
     agent any
      stages 
     {   
+        stage('Check')
+        {
+            steps
+            {
+                sh """
+                g++ --version
+                """
+            }
+        }
         stage('TBB')
         {
             steps
