@@ -29,8 +29,10 @@ script:
     # traces from any crashes.
     - export LD_PRELOAD=/lib/x86_64-linux-gnu/libSegFault.so
     - export LD_LIBRARY_PATH=$DEPENDENCIES/lib
+    - cat contrib/IECoreUSD/test/IECoreUSD/All.py
     - scons -j 2
       testCore testCorePython testScene testImage testAlembic
+      --cache-force
       CXX=$CXX
       CXXSTD=$CXXSTD
       TBB_INCLUDE_PATH=$DEPENDENCIES/lib
@@ -46,6 +48,8 @@ script:
       FREETYPE_LIB_PATH=$DEPENDENCIES/lib
       ALEMBIC_INCLUDE_PATH=$DEPENDENCIES/include
       ALEMBIC_LIB_PATH=$DEPENDENCIES/lib
+      USD_INCLUDE_PATH=$DEPENDENCIES/include
+      USD_LIB_PATH=$DEPENDENCIES/lib
       HDF5_INCLUDE_PATH=$DEPENDENCIES/include
       HDF5_LIB_PATH=$DEPENDENCIES/lib
       APPLESEED_INCLUDE_PATH=$DEPENDENCIES/appleseed/include

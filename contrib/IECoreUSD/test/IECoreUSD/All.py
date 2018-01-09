@@ -37,6 +37,30 @@ import sys
 
 import IECore
 
+import os
+print " ==== PYTHONHOME ===="
+for p in os.environ["PYTHONPATH"].split(":"):
+	print p
+print " ================== "
+
+
+print " ==== LD_LIBRARY_PATH ==== "
+
+for p in os.environ["LD_LIBRARY_PATH"].split(":"):
+	print p
+print " ================== "
+
+import IECoreUSD
+
+print IECoreUSD
+print IECoreUSD._IECoreUSD
+
+import IECoreScene
+
+print IECoreScene.SceneInterface.supportedExtensions()
+
+print " ================== "
+
 from USDSceneTest import USDSceneTest
 from USDSceneWriterTest import USDSceneWriterTest
 
