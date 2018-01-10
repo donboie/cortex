@@ -31,7 +31,8 @@ script:
     - export LD_LIBRARY_PATH=$DEPENDENCIES/lib
     - cat contrib/IECoreUSD/test/IECoreUSD/All.py
     - scons -j 2
-      testCore testCorePython testScene testImage testAlembic
+      testCore testCorePython testScene testImage testAlembic testUSD
+      --cache-disable
       --cache-force
       CXX=$CXX
       CXXSTD=$CXXSTD
