@@ -126,10 +126,9 @@ bool SceneInterface::hasBound() const
 	return true;
 }
 
-
-bool SceneInterface::hasTag( const Name &name, int filter  ) const
+bool SceneInterface::hasTag( const Name &name, int filter ) const
 {
-	if ( !filter )
+	if( !filter )
 	{
 		return false;
 	}
@@ -140,17 +139,17 @@ bool SceneInterface::hasTag( const Name &name, int filter  ) const
 	ConstPathMatcherDataPtr setPaths = getRoot() ? getRoot()->readSet( name ) : readSet( name );
 	unsigned int matchResult = setPaths->readable().match( currentPath );
 
-	if( (filter & SceneInterface::LocalTag) && (matchResult & PathMatcher::ExactMatch) )
+	if( ( filter & SceneInterface::LocalTag ) && ( matchResult & PathMatcher::ExactMatch ) )
 	{
 		return true;
 	}
 
-	if( (filter & SceneInterface::DescendantTag) && (matchResult & PathMatcher::DescendantMatch) )
+	if( ( filter & SceneInterface::DescendantTag ) && ( matchResult & PathMatcher::DescendantMatch ) )
 	{
 		return true;
 	}
 
-	if( (filter & SceneInterface::AncestorTag) && (matchResult & PathMatcher::AncestorMatch) )
+	if( ( filter & SceneInterface::AncestorTag ) && ( matchResult & PathMatcher::AncestorMatch ) )
 	{
 		return true;
 	}
@@ -168,37 +167,40 @@ void SceneInterface::readTags( SceneInterface::NameList &tags, int filter ) cons
 	NameList names = getRoot() ? getRoot()->setNames() : setNames();
 	for( const auto &setName : names )
 	{
-		// todo guard against calling on root
 		unsigned int matchResult = 0;
 
-		if (getRoot())
+		if( getRoot() )
+		{
 			matchResult = getRoot()->readSet( setName )->readable().match( currentPath );
+		}
 		else
+		{
 			matchResult = readSet( setName )->readable().match( currentPath );
+		}
 
-		if( (filter & SceneInterface::LocalTag) && (matchResult & PathMatcher::ExactMatch) )
+		if( ( filter & SceneInterface::LocalTag ) && ( matchResult & PathMatcher::ExactMatch ) )
 		{
 			setTags.push_back( setName );
 		}
 
-		if( (filter & SceneInterface::DescendantTag) && (matchResult & PathMatcher::DescendantMatch) )
+		if( ( filter & SceneInterface::DescendantTag ) && ( matchResult & PathMatcher::DescendantMatch ) )
 		{
 			setTags.push_back( setName );
 		}
 
-		if( (filter & SceneInterface::AncestorTag) && (matchResult & PathMatcher::AncestorMatch) )
+		if( ( filter & SceneInterface::AncestorTag ) && ( matchResult & PathMatcher::AncestorMatch ) )
 		{
 			setTags.push_back( setName );
 		}
 	}
 
 	tags.clear();
-	tags.insert(tags.end(), setTags.begin(), setTags.end());
+	tags.insert( tags.end(), setTags.begin(), setTags.end() );
 }
 
 void SceneInterface::writeTags( const SceneInterface::NameList &tags )
 {
-	if ( !tags.size() )
+	if( !tags.size() )
 	{
 		return;
 	}
@@ -208,7 +210,7 @@ void SceneInterface::writeTags( const SceneInterface::NameList &tags )
 
 	for( const auto &tag : tags )
 	{
-		if ( getRoot() )
+		if( getRoot() )
 		{
 			getRoot()->addPathToSet( tag, currentPath );
 		}
@@ -216,7 +218,6 @@ void SceneInterface::writeTags( const SceneInterface::NameList &tags )
 		{
 			addPathToSet( tag, currentPath );
 		}
-
 	}
 }
 
@@ -263,10 +264,10 @@ void SceneInterface::stringToPath( const std::string &path, SceneInterface::Path
 	}
 }
 
-void SceneInterface::addPathToSet( const Name &name, const IECoreScene::SceneInterface::Path& path)
+void SceneInterface::addPathToSet( const Name &name, const IECoreScene::SceneInterface::Path &path )
 {
 	IECore::PathMatcherDataPtr set = readSet( name )->copy();
 	set->writable().addPath( path );
-	writeSet(name, set.get());
+	writeSet( name, set.get() );
 }
 

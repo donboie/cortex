@@ -225,7 +225,7 @@ class IECORESCENE_API SceneInterface : public IECore::RunTimeTyped
 		// Writes a set at the current location. All paths are specified relative to the current location.
 		virtual void writeSet( const Name &name, const IECore::PathMatcherData *set ) {}
 		// Adds a path to a set
-		virtual void addPathToSet( const Name &name, const IECoreScene::SceneInterface::Path& path);
+		virtual void addPathToSet( const Name &name, const IECoreScene::SceneInterface::Path& path );
 
 		/*
 		 * IECore::Object

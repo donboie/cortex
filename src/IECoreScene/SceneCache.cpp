@@ -699,9 +699,9 @@ class SceneCache::ReaderImplementation : public SceneCache::Implementation
 
 		ConstPathMatcherDataPtr readSet( const Name &name ) const override
 		{
-			auto it = m_cachedSets.find(name);
+			auto it = m_cachedSets.find( name );
 
-			if ( it != m_cachedSets.end() )
+			if( it != m_cachedSets.end() )
 			{
 				return it->second;
 			}
@@ -714,7 +714,7 @@ class SceneCache::ReaderImplementation : public SceneCache::Implementation
 
 			NameList childSetNames = readChildSetNames();
 
-			if ( std::find(childSetNames.begin(), childSetNames.end(), name) != childSetNames.end() )
+			if( std::find( childSetNames.begin(), childSetNames.end(), name ) != childSetNames.end() )
 			{
 				NameList children;
 				childNames( children );
@@ -739,7 +739,7 @@ class SceneCache::ReaderImplementation : public SceneCache::Implementation
 
 			IECore::CompoundDataBasePtr compoundDataBase = getSetCompound();
 
-			if ( !compoundDataBase )
+			if( !compoundDataBase )
 			{
 				return NameList();
 			}
@@ -747,20 +747,20 @@ class SceneCache::ReaderImplementation : public SceneCache::Implementation
 			NameList setNames;
 			const auto &readable = compoundDataBase->readable();
 
-			for ( auto it : readable)
+			for( auto it : readable )
 			{
 				setNames.push_back( it.first );
 			}
 
 			NameList childSetNames = readChildSetNames();
 
-			std::set<SceneInterface::Name> unique(setNames.begin(), setNames.end());
+			std::set<SceneInterface::Name> unique( setNames.begin(), setNames.end() );
 
-			for (const auto &childSetName : childSetNames )
+			for( const auto &childSetName : childSetNames )
 			{
 				unique.insert( childSetName );
 			}
-			return NameList(unique.begin(), unique.end());
+			return NameList( unique.begin(), unique.end() );
 		}
 
 		ReaderImplementation *getRoot()
@@ -775,7 +775,7 @@ class SceneCache::ReaderImplementation : public SceneCache::Implementation
 
 		void convertTagsToSets()
 		{
-			if ( m_setsConverted )
+			if( m_setsConverted )
 			{
 				return;
 			}
@@ -797,10 +797,10 @@ class SceneCache::ReaderImplementation : public SceneCache::Implementation
 			}
 
 			/// provided for backward compatibility...
-			if ( tags.empty() && descendentTags.empty() )
+			if( tags.empty() && descendentTags.empty() )
 			{
 				ConstIndexedIOPtr tagsIO = m_indexedIO->subdirectory( tagsEntry, IndexedIO::NullIfMissing );
-				if ( tagsIO )
+				if( tagsIO )
 				{
 					tagsIO->entryIds( tags, IndexedIO::File );
 					tagsIO->entryIds( descendentTags );
@@ -829,7 +829,7 @@ class SceneCache::ReaderImplementation : public SceneCache::Implementation
 				for( const auto &c : children )
 				{
 					ReaderImplementationPtr childReader = child( c, NullIfMissing );
-					if ( childReader )
+					if( childReader )
 					{
 						childReader->convertTagsToSets();
 					}
@@ -855,7 +855,7 @@ class SceneCache::ReaderImplementation : public SceneCache::Implementation
 		{
 			IECore::CompoundDataBasePtr compoundDataBase = getSetCompound();
 
-			if ( !compoundDataBase )
+			if( !compoundDataBase )
 			{
 				return new IECore::PathMatcherData();
 			}
@@ -892,7 +892,7 @@ class SceneCache::ReaderImplementation : public SceneCache::Implementation
 
 		IECore::CompoundDataBasePtr getSetCompound() const
 		{
-			if ( m_sets )
+			if( m_sets )
 			{
 				return runTimeCast<CompoundDataBase>( m_sets );
 			}
@@ -1552,7 +1552,7 @@ class SceneCache::WriterImplementation : public SceneCache::Implementation
 
 		ConstPathMatcherDataPtr readSet( const Name &name ) const override
 		{
-			if ( !m_sets )
+			if( !m_sets )
 			{
 				return new IECore::PathMatcherData();
 			}
@@ -1572,7 +1572,7 @@ class SceneCache::WriterImplementation : public SceneCache::Implementation
 			{
 				WriterImplementation *nc = const_cast<WriterImplementation *>(this);
 				ConstPathMatcherDataPtr childSets = nc->child( c, SceneInterface::NullIfMissing )->readSet( name );
-				pathMatcherData->writable().addPaths(childSets->readable(), { c });
+				pathMatcherData->writable().addPaths( childSets->readable(), {c} );
 			}
 
 			return pathMatcherData;
@@ -1580,14 +1580,14 @@ class SceneCache::WriterImplementation : public SceneCache::Implementation
 
 		NameList setNames() const override
 		{
-			if ( !m_sets )
+			if( !m_sets )
 			{
 				return NameList();
 			}
 
 			IECore::CompoundDataBasePtr compoundDataBase = m_sets;
 
-			if ( !compoundDataBase )
+			if( !compoundDataBase )
 			{
 				return NameList();
 			}
@@ -1595,7 +1595,7 @@ class SceneCache::WriterImplementation : public SceneCache::Implementation
 			NameList setNames;
 			const auto &readable = compoundDataBase->readable();
 
-			for ( auto it : readable)
+			for( auto it : readable )
 			{
 				setNames.push_back( it.first );
 			}
@@ -1603,19 +1603,19 @@ class SceneCache::WriterImplementation : public SceneCache::Implementation
 			NameList children;
 			childNames( children );
 
-			for (const auto &c : children)
+			for( const auto &c : children )
 			{
-				WriterImplementation* nc = const_cast<WriterImplementation*>(this);
+				WriterImplementation *nc = const_cast<WriterImplementation *>(this);
 
-				NameList childSetNames = nc->child(c, SceneInterface::NullIfMissing)->setNames();
-				for (const auto csn : childSetNames)
+				NameList childSetNames = nc->child( c, SceneInterface::NullIfMissing )->setNames();
+				for( const auto csn : childSetNames )
 				{
-					setNames.push_back(csn);
+					setNames.push_back( csn );
 				}
 			}
 
-			std::set<SceneInterface::Name> unique(setNames.begin(), setNames.end());
-			return NameList(unique.begin(), unique.end());
+			std::set<SceneInterface::Name> unique( setNames.begin(), setNames.end() );
+			return NameList( unique.begin(), unique.end() );
 		}
 
 		WriterImplementation *getRoot()
@@ -2203,11 +2203,11 @@ class SceneCache::WriterImplementation : public SceneCache::Implementation
 			const auto &readable = m_sets->readable();
 			NameList result;
 
-			result.reserve(readable.size());
+			result.reserve( readable.size() );
 
-			for (const auto i : readable)
+			for( const auto i : readable )
 			{
-				result.push_back(i.first);
+				result.push_back( i.first );
 			}
 			return result;
 		}
@@ -2216,16 +2216,15 @@ class SceneCache::WriterImplementation : public SceneCache::Implementation
 		{
 			IndexedIOPtr io = m_indexedIO->subdirectory( childSetsEntry, IndexedIO::CreateIfMissing );
 
-			for(const auto &childSetName : childSetNames)
+			for( const auto &childSetName : childSetNames )
 			{
 				io->subdirectory( childSetName, IndexedIO::CreateIfMissing );
 			}
 
-			if ( m_parent )
+			if( m_parent )
 			{
 				m_parent->writeChildSetNames( childSetNames );
 			}
-
 		}
 
 		WriterImplementation* m_parent;
@@ -2479,7 +2478,6 @@ IECore::ConstPathMatcherDataPtr SceneCache::readSet( const Name &name ) const
 void SceneCache::writeSet( const Name &name, const IECore::PathMatcherData *set )
 {
 	WriterImplementation *writer = WriterImplementation::writer( m_implementation.get() );
-
 	writer->writeSet( name, set );
 }
 

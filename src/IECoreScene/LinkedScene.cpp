@@ -862,32 +862,32 @@ void LinkedScene::readTags( NameList &tags, int filter ) const
 
 		m_mainScene->readTags( tags, filter );
 
-		uniqueTags.insert(tags.begin(), tags.end());
+		uniqueTags.insert( tags.begin(), tags.end() );
 
 		NameList linkedSceneTags;
-		SceneInterface::readTags( linkedSceneTags, filter);
+		SceneInterface::readTags( linkedSceneTags, filter );
 
-		uniqueTags.insert(linkedSceneTags.begin(), linkedSceneTags.end());
+		uniqueTags.insert( linkedSceneTags.begin(), linkedSceneTags.end() );
 
-		tags = NameList(uniqueTags.begin(), uniqueTags.end());
+		tags = NameList( uniqueTags.begin(), uniqueTags.end() );
 	}
 }
 
 void LinkedScene::writeTags( const NameList &tags )
 {
-	if ( m_readOnly )
+	if( m_readOnly )
 	{
 		throw Exception( "No write access to scene file!" );
 	}
 
-	m_mainScene->writeTags(tags);
+	m_mainScene->writeTags( tags );
 }
 
 
 
 void LinkedScene::buildSets()
 {
-	if ( !m_linkedFileSets )
+	if( !m_linkedFileSets )
 	{
 		m_linkedFileSets = new IECore::CompoundData();
 		buildSets( m_linkedFileSets );
@@ -896,7 +896,7 @@ void LinkedScene::buildSets()
 
 SceneInterface::NameList LinkedScene::setNames() const
 {
-	const_cast<LinkedScene*>(this)->buildSets();
+	const_cast<LinkedScene *>(this)->buildSets();
 
 	if( m_linkedScene )
 	{
@@ -907,9 +907,9 @@ SceneInterface::NameList LinkedScene::setNames() const
 
 	SceneInterfacePtr root = getRoot();
 	ConstLinkedScenePtr rootScene = nullptr;
-	if ( root )
+	if( root )
 	{
-		rootScene = runTimeCast<LinkedScene> (root);
+		rootScene = runTimeCast<LinkedScene>( root );
 	}
 	else
 	{
@@ -953,25 +953,25 @@ SceneInterface::NameList LinkedScene::setNames() const
 
 IECore::ConstPathMatcherDataPtr LinkedScene::readSet( const Name &name ) const
 {
-	const_cast<LinkedScene*>(this)->buildSets();
+	const_cast<LinkedScene *>(this)->buildSets();
 	PathMatcherDataPtr pathMatcherData = new PathMatcherData();
 
-	if ( m_linkedScene )
+	if( m_linkedScene )
 	{
 		return m_linkedScene->readSet( name );
 	}
 
 	ConstPathMatcherDataPtr localSetPaths = m_mainScene->readSet( name );
-	if ( localSetPaths )
+	if( localSetPaths )
 	{
 		pathMatcherData->writable().addPaths( localSetPaths->readable() );
 	}
 
 	SceneInterfacePtr root = getRoot();
 	ConstLinkedScenePtr rootScene = nullptr;
-	if ( root )
+	if( root )
 	{
-		rootScene = runTimeCast<LinkedScene> (root);
+		rootScene = runTimeCast<LinkedScene>( root );
 	}
 	else
 	{
@@ -980,7 +980,7 @@ IECore::ConstPathMatcherDataPtr LinkedScene::readSet( const Name &name ) const
 
 	IECore::CompoundDataPtr rootLinkedFileSets = rootScene->m_linkedFileSets;
 
-	if ( rootLinkedFileSets )
+	if( rootLinkedFileSets )
 	{
 		SceneInterface::Path currentPath;
 		path( currentPath );
@@ -997,16 +997,16 @@ IECore::ConstPathMatcherDataPtr LinkedScene::readSet( const Name &name ) const
 				CompoundDataPtr sets = allFileSets->member<CompoundData>( it.first );
 				for( auto setIt : sets->readable() )
 				{
-					if (setIt.first == name )
+					if( setIt.first == name )
 					{
-						for (PathMatcher::Iterator pathIt = pathMatcher.begin(); pathIt != pathMatcher.end(); ++pathIt )
+						for( PathMatcher::Iterator pathIt = pathMatcher.begin(); pathIt != pathMatcher.end(); ++pathIt )
 						{
 							SceneInterface::Path path = *pathIt;
 
 							SceneInterface::Path difference = path;
-							for (size_t i = 0; i < std::min(path.size(), currentPath.size()); ++i)
+							for( size_t i = 0; i < std::min( path.size(), currentPath.size() ); ++i )
 							{
-								if (difference[0] == path[i] )
+								if( difference[0] == path[i] )
 								{
 									difference.erase( difference.begin() );
 								}
@@ -1025,7 +1025,7 @@ IECore::ConstPathMatcherDataPtr LinkedScene::readSet( const Name &name ) const
 
 void LinkedScene::writeSet( const Name &name, const IECore::PathMatcherData *set )
 {
-	if ( m_readOnly )
+	if( m_readOnly )
 	{
 		throw Exception( "No write access to scene file!" );
 	}
