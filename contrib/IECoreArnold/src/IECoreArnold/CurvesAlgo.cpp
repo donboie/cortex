@@ -105,6 +105,11 @@ AtNode *convertCommon( const IECore::CurvesPrimitive *curves )
 
 AtNode *CurvesAlgo::convert( const IECore::CurvesPrimitive *curves )
 {
+	if ( curves->numCurves() == 0 )
+	{
+		return NULL;
+	}
+
 	AtNode *result = convertCommon( curves );
 	ShapeAlgo::convertP( curves, result, "points" );
 	ShapeAlgo::convertRadius( curves, result );
@@ -126,6 +131,11 @@ AtNode *CurvesAlgo::convert( const IECore::CurvesPrimitive *curves )
 
 AtNode *CurvesAlgo::convert( const std::vector<const IECore::CurvesPrimitive *> &samples, float motionStart, float motionEnd )
 {
+	if ( samples.front()->numCurves() == 0 )
+	{
+		return NULL;
+	}
+
 	AtNode *result = convertCommon( samples.front() );
 
 	std::vector<const IECore::Primitive *> primitiveSamples( samples.begin(), samples.end() );

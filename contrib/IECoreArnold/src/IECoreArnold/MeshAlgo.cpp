@@ -370,6 +370,11 @@ NodeAlgo::ConverterDescription<MeshPrimitive> g_description( MeshAlgo::convert, 
 
 AtNode *MeshAlgo::convert( const IECore::MeshPrimitive *mesh )
 {
+	if ( mesh->numFaces() == 0)
+	{
+		return NULL;
+	}
+
 	AtNode *result = convertCommon( mesh );
 
 	ShapeAlgo::convertP( mesh, result, "vlist" );
@@ -393,6 +398,11 @@ AtNode *MeshAlgo::convert( const IECore::MeshPrimitive *mesh )
 
 AtNode *MeshAlgo::convert( const std::vector<const IECore::MeshPrimitive *> &samples, float motionStart, float motionEnd )
 {
+	if ( samples.front()->numFaces() == 0 )
+	{
+		return NULL;
+	}
+
 	AtNode *result = convertCommon( samples.front() );
 
 	std::vector<const IECore::Primitive *> primitiveSamples( samples.begin(), samples.end() );

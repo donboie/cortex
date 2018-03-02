@@ -106,6 +106,11 @@ namespace PointsAlgo
 
 AtNode *convert( const IECore::PointsPrimitive *points )
 {
+	if ( points->getNumPoints() == 0 )
+	{
+		return NULL;
+	}
+
 	AtNode *result = convertCommon( points );
 
 	ShapeAlgo::convertP( points, result, "points" );
@@ -118,6 +123,11 @@ AtNode *convert( const IECore::PointsPrimitive *points )
 
 AtNode *convert( const std::vector<const IECore::PointsPrimitive *> &samples, float motionStart, float motionEnd )
 {
+	if ( samples.front()->getNumPoints() == 0 )
+	{
+		return NULL;
+	}
+
 	AtNode *result = convertCommon( samples.front() );
 
 	std::vector<const IECore::Primitive *> primitiveSamples( samples.begin(), samples.end() );
