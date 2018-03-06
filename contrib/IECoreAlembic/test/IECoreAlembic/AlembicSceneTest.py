@@ -872,5 +872,94 @@ class AlembicSceneTest( unittest.TestCase ) :
 		self.assertEqual( object["test"].data, IECore.FloatVectorData( [1] ) )
 		self.assertEqual( object["test"].indices, IECore.IntVectorData( [0, 0, 0, 0] ) )
 
+	def testSets( self ):
+		# Based on IECoreScene/SceneCacheTest.py & IECoreUSD/USDSceneWriterTest.py
+		# A
+		#   B { 'don': ['/E'], 'john'; ['/F'] }
+		#      E
+		#      F
+		#   C { 'don' : ['/O'] }
+		#      O
+		#   D { 'john' : ['/G] }
+		#      G {'matti' : ['/'] }  this will not get written - added here so we ensure the other set information is writen inspite of
+		# H
+		#    I
+		#       J
+		#          K {'foo',['/L/M/N'] }
+		#             L
+		#                M
+		#                   N
+
+		writeRoot = IECoreScene.SceneInterface.create( "/tmp/test.abc", IECore.IndexedIO.OpenMode.Write )
+
+		A = writeRoot.createChild("A")
+		B = A.createChild("B")
+		C = A.createChild("C")
+		D = A.createChild("D")
+		E = B.createChild("E")
+		F = B.createChild("F")
+		G = D.createChild("G")
+
+		H = writeRoot.createChild("H")
+		I = H.createChild("I")
+		J = I.createChild("J")
+		K = J.createChild("K")
+		L = K.createChild("L")
+		M = L.createChild("M")
+		N = M.createChild("N")
+
+		O = C.createChild("O")
+
+		def makePathMatcherData( paths ) :
+			return IECore.PathMatcherData( IECore.PathMatcher( paths ) )
+
+		B.writeSet( "don", makePathMatcherData( ['/E'] ) )
+		B.writeSet( "john", makePathMatcherData( ['/F'] ) )
+		C.writeSet( "don", makePathMatcherData( ['/O'] ) )
+		D.writeSet( "john", makePathMatcherData( ['/G'] ) )
+		K.writeSet( "foo", makePathMatcherData( ['/L/M/N'] ) )
+		G.writeSet( "matti", makePathMatcherData( ['/'] ) )
+
+		del O, N, M, L, K, J, I, H, G, F, E, D, C, B, A, writeRoot
+
+		readRoot = IECoreScene.SceneInterface.create( "/tmp/test.abc", IECore.IndexedIO.OpenMode.Read )
+
+		self.assertEqual( set(readRoot.childNames()), set (['A', 'H']) )
+
+		A = readRoot.child('A')
+
+		self.assertEqual( set( A.childNames() ), set( ['B', 'C', 'D'] ) )
+		B = A.child('B')
+		C = A.child('C')
+		D = A.child('D')
+		E = B.child('E')
+		F = B.child('F')
+		H = readRoot.child('H')
+
+		self.assertEqual( set( B.childNames() ), set( ['E', 'F'] ) )
+		self.assertEqual( D.childNames(), ['G'] )
+
+		self.assertEqual( set(B.readSet("don").value.paths() ), set(['/E'] ) )
+		self.assertEqual( set(B.readSet("john").value.paths() ), set(['/F'] ) )
+		self.assertEqual( set(C.readSet("don").value.paths() ), set(['/O'] ) )
+		self.assertEqual( set(D.readSet("john").value.paths() ), set(['/G'] ) )
+
+		self.assertEqual( set(E.readSet("don").value.paths() ), set([] ) )
+
+		# Check the setNames returns all the sets in it's subtree
+		self.assertEqual( set( B.setNames() ), set( ['don', 'john'] ) )
+		self.assertEqual( set( C.setNames() ), set( ['don'] ) )
+		self.assertEqual( set( D.setNames() ), set( ['john', 'matti'] ) )
+		self.assertEqual( set( E.setNames() ), set() )
+		self.assertEqual( set( F.setNames() ), set() )
+
+		self.assertEqual( len( A.setNames() ), 3)
+		self.assertEqual( set( A.setNames() ), set( ['don', 'john', 'matti'] ) )
+		self.assertEqual( set( A.readSet( "don" ).value.paths() ), set( ['/B/E', '/C/O'] ) )
+		self.assertEqual( set( A.readSet( "john" ).value.paths() ), set( ['/B/F', '/D/G'] ) )
+
+		self.assertEqual( set( H.readSet( "foo" ).value.paths() ), set( ['/I/J/K/L/M/N'] ) )
+
+
 if __name__ == "__main__":
     unittest.main()
