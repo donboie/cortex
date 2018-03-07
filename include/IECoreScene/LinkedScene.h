@@ -38,6 +38,7 @@
 #include "IECoreScene/Export.h"
 #include "IECoreScene/SampledSceneInterface.h"
 
+#include "IECore/PathMatcherData.h"
 #include "IECore/SimpleTypedData.h"
 #include "IECore/VectorTypedData.h"
 
@@ -135,6 +136,11 @@ class IECORESCENE_API LinkedScene : public  SampledSceneInterface
 		void readTags( NameList &tags, int filter = SceneInterface::LocalTag ) const override;
 		void writeTags( const NameList &tags ) override;
 
+		NameList setNames() const override;
+		IECore::ConstPathMatcherDataPtr readSet( const Name &name ) const override;
+		void writeSet( const Name &name, const IECore::PathMatcherData *set ) override;
+		void hashSet( const Name &setName, IECore::MurmurHash &h ) const override;
+
 		bool hasObject() const override;
 		size_t numObjectSamples() const override;
 		double objectSampleTime( size_t sampleIndex ) const override;
@@ -165,6 +171,9 @@ class IECORESCENE_API LinkedScene : public  SampledSceneInterface
 		// uses the mainScene to ask what is the time the link is remapped to. Should only be called when the linkAttribute is available.
 		double remappedLinkTime( double time ) const;
 		double remappedLinkTimeAtSample( size_t sampleIndex ) const;
+
+		IECore::PathMatcherDataPtr linkLocations() const;
+		void recurseLinkLocations( IECore::PathMatcher &pathMatcher ) const;
 
 		SceneInterfacePtr m_mainScene;
 		ConstSceneInterfacePtr m_linkedScene;

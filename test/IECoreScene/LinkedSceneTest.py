@@ -37,10 +37,11 @@ import sys
 import os
 import math
 import unittest
-import imath
 
 import IECore
 import IECoreScene
+
+import imath
 
 class LinkedSceneTest( unittest.TestCase ) :
 
@@ -1001,6 +1002,124 @@ class LinkedSceneTest( unittest.TestCase ) :
 
 		del l,link
 
+	def makePathMatcherData( self, paths ) :
+
+		return IECore.PathMatcherData( IECore.PathMatcher( paths ) )
+
+	def assertEqualUnordered( self, a, b ) :
+
+		self.assertEqual( len( a ), len( b ) )
+		self.assertEqual( set( a ), set( b ) )
+
+	def testReadAndWriteSetsOnLinkedScene( self ) :
+
+		# Linked scene hierarchy
+		# A {'don': ['/B'] }
+		#    B {'stew' : ['/'] }
+
+		sceneFile = "/tmp/test.lscc"
+		w = IECoreScene.LinkedScene( sceneFile, IECore.IndexedIO.OpenMode.Write )
+		A = w.createChild( "A" )
+		B = A.createChild( "B" )
+
+		A.writeSet( "don", self.makePathMatcherData( ['/B'] ) )
+		B.writeSet( "stew", self.makePathMatcherData( ['/'] ) )
+		del B, A, w
+
+		r = IECoreScene.LinkedScene( sceneFile, IECore.IndexedIO.OpenMode.Read )
+		A = r.child( "A" )
+		B = A.child( "B" )
+
+		self.assertEqualUnordered( A.setNames(), ["don", "stew"] )
+		self.assertEqualUnordered( A.readSet( "don" ).value.paths(), ['/B'] )
+		self.assertEqualUnordered( B.readSet( "stew" ).value.paths(), ['/'] )
+
+	def testWritingSetToLinkSceneLocationRaisesException( self ) :
+
+		# Linked to scene hierarchy (regular SceneCache)
+		# A {'don': ['/B'] }
+		#    B {'stew' : ['/'] }
+
+		sceneFile = "/tmp/target.scc"
+		w = IECoreScene.SceneCache( sceneFile, IECore.IndexedIO.OpenMode.Write )
+		A = w.createChild( "A" )
+		B = A.createChild( "B" )
+
+		A.writeSet( "don", self.makePathMatcherData( ['/B'] ) )
+		B.writeSet( "stew", self.makePathMatcherData( ['/'] ) )
+
+		del B, A, w
+
+		r = IECoreScene.SceneCache( sceneFile, IECore.IndexedIO.OpenMode.Read )
+		A = r.child( "A" )
+
+		# Master scene which contains link to above scene
+		# C
+		#    D -> [target.scc, /]
+
+		sceneFile = "/tmp/scene.lscc"
+		w = IECoreScene.LinkedScene( sceneFile, IECore.IndexedIO.OpenMode.Write )
+		C = w.createChild( "C" )
+		D = C.createChild( "D" )
+
+		D.writeLink( r )
+
+		linkedA = D.child( 'A' )
+
+		with self.assertRaises( Exception ) as cm :
+			linkedA.writeSet( 'foo', self.makePathMatcherData( ['/'] ) )
+
+		self.assertEqual( cm.exception.message, "Exception : Unable to write set to linked scene location: '/C/D/A'" )
+
+		del D, C, w
+
+	def testCanReadSetNamesAndMembersOfLinkedScene( self ) :
+
+		def printTree( s, depth ) :
+
+			for c in s.childNames() :
+				print ' ' * depth + c
+				printTree( s.child( c ), depth + 1 )
+
+		# Linked to scene hierarchy (regular SceneCache)
+		# A {'don': ['/'] }
+		#    B {'stew' : ['/'] }
+
+		sceneFile = "/tmp/target.scc"
+		w = IECoreScene.SceneCache( sceneFile, IECore.IndexedIO.OpenMode.Write )
+		A = w.createChild( "A" )
+		B = A.createChild( "B" )
+
+		A.writeSet( "don", self.makePathMatcherData( ['/'] ) )
+		B.writeSet( "stew", self.makePathMatcherData( ['/'] ) )
+
+		del B, A, w
+
+		r = IECoreScene.SceneCache( sceneFile, IECore.IndexedIO.OpenMode.Read )
+		A = r.child( "A" )
+
+		# Master scene which contains link to above scene
+		# C
+		#    D -> [target.scc, /]
+
+		sceneFile = "/tmp/scene.lscc"
+		w = IECoreScene.LinkedScene( sceneFile, IECore.IndexedIO.OpenMode.Write )
+		C = w.createChild( "C" )
+		D = C.createChild( "D" )
+
+		D.writeLink( r )
+
+		del w, C, D
+
+		# ok lets read back in our linked scene and try and read the set names
+		r = IECoreScene.LinkedScene( sceneFile, IECore.IndexedIO.OpenMode.Read )
+		self.assertEqualUnordered( r.setNames(), ['don', 'stew'] )
+
+		# print ""
+		# printTree( r, 0 )
+
+		self.assertEqual( r.readSet( "don" ), self.makePathMatcherData(['/C/D/A'] ) )
+		self.assertEqual( r.readSet( "stew" ), self.makePathMatcherData(['/C/D/A/B'] ) )
 
 if __name__ == "__main__":
 	unittest.main()
