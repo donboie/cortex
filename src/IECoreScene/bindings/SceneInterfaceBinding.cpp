@@ -209,6 +209,13 @@ static  list setNames( const SceneInterface &m )
 	return arrayToList( a );
 }
 
+static MurmurHash hashSet( SceneInterface &m, const SceneInterface::Name &name)
+{
+	MurmurHash h;
+	m.hashSet( name,  h );
+	return h;
+}
+
 void bindSceneInterface()
 {
 	SceneInterfacePtr (SceneInterface::*nonConstChild)(const SceneInterface::Name &, SceneInterface::MissingBehaviour) = &SceneInterface::child;
@@ -270,6 +277,7 @@ void bindSceneInterface()
 		.def( "writeTags", writeTags )
 		.def( "setNames", &setNames )
 		.def( "writeSet", &SceneInterface::writeSet )
+		.def( "hashSet", &hashSet )
 		.def( "readSet", &readSet )
 		.def( "readObject", &readObject )
 		.def( "readObjectPrimitiveVariables", &readObjectPrimitiveVariables )

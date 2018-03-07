@@ -215,13 +215,15 @@ class IECORESCENE_API SceneInterface : public IECore::RunTimeTyped
 		 */
 
 		/// Returns the names of all sets containing objects in this location and all of its descendants.
-		/// todo setNames, readSet & writeSet should be pure virtual once all derived classes have
+		/// todo setNames, readSet, writeSet & hashSet should be pure virtual once all derived classes have
 		/// been updated.
 		virtual NameList setNames() const { return NameList(); }
-		// Reads the named set. All paths returned are relative to the current location.
+		/// Reads the named set. All paths returned are relative to the current location.
 		virtual IECore::ConstPathMatcherDataPtr readSet( const Name &name ) const { return nullptr; }
-		// Writes a set at the current location. All paths are specified relative to the current location.
+		/// Writes a set at the current location. All paths are specified relative to the current location.
 		virtual void writeSet( const Name &name, const IECore::PathMatcherData *set ) {}
+		/// Hash a named set at the current location.
+		virtual void hashSet( const Name& setName, IECore::MurmurHash &h ) const { }
 
 		/*
 		 * IECore::Object
