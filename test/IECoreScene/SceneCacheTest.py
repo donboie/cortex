@@ -36,6 +36,7 @@ import gc
 import sys
 import math
 import unittest
+import shutil
 
 import IECore
 import IECoreScene
@@ -841,6 +842,45 @@ class SceneCacheTest( unittest.TestCase ) :
 		self.assertEqual( set( A.readSet( "john" ).value.paths() ), set( ['/B/F', '/D/G'] ) )
 
 		self.assertEqual( set( H.readSet( "foo" ).value.paths() ), set( ['/I/J/K/L/M/N'] ) )
+
+	def testSetHashes( self ):
+
+		# A
+		#   B
+
+
+		# Note we don't need to write out any sets to test the hashing a
+		# as we only use scene graph location, filename & set name for the hash
+
+		writeRoot = IECoreScene.SceneCache( "/tmp/test.scc", IECore.IndexedIO.OpenMode.Write )
+
+		A = writeRoot.createChild("A")
+		B = A.createChild("B")
+
+		del A, B, writeRoot
+
+		shutil.copyfile('/tmp/test.scc', '/tmp/testAnotherFile.scc')
+
+		readRoot = IECoreScene.SceneCache( "/tmp/test.scc", IECore.IndexedIO.OpenMode.Read )
+		readRoot2 = IECoreScene.SceneCache( "/tmp/testAnotherFile.scc", IECore.IndexedIO.OpenMode.Read )
+
+		readRoot3 = IECoreScene.SceneCache( "/tmp/test.scc", IECore.IndexedIO.OpenMode.Read )
+
+		A = readRoot.child('A')
+		Ap = readRoot.child('A')
+
+		self.assertNotEqual( A.hashSet("dummySetA"), A.hashSet("dummySetB") )
+		self.assertEqual( A.hashSet("dummySetA"), Ap.hashSet("dummySetA") )
+
+		B = A.child("B")
+
+		self.assertNotEqual( A.hashSet("dummySetA"), B.hashSet("dummySetA") )
+
+		A2 = readRoot2.child('A')
+		self.assertNotEqual( A.hashSet("dummySetA"), A2.hashSet("dummySetA") )
+
+		A3 = readRoot3.child('A')
+		self.assertEqual( A.hashSet("dummySetA"), A3.hashSet("dummySetA") )
 
 
 	def testSampleTimeOrder( self ):

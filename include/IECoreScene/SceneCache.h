@@ -116,6 +116,7 @@ class IECORESCENE_API SceneCache : public SampledSceneInterface
 		NameList setNames() const override;
 		IECore::ConstPathMatcherDataPtr readSet( const Name &name ) const override;
 		void writeSet( const Name &name, const IECore::PathMatcherData *set ) override;
+		void hashSet( const Name &name, IECore::MurmurHash &h ) const override;
 
 		bool hasObject() const override;
 		size_t numObjectSamples() const override;

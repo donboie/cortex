@@ -2288,6 +2288,25 @@ void SceneCache::writeSet( const Name &name, const IECore::PathMatcherData *set 
 	writer->writeSet( name, set );
 }
 
+void SceneCache::hashSet( const Name &name, IECore::MurmurHash &h ) const
+{
+	h.append( m_implementation->fileName() );
+
+	// todo move path function to Implementation base class
+	SceneInterface::Path path;
+	if( ReaderImplementation *reader = ReaderImplementation::reader( m_implementation.get() ) )
+	{
+		reader->path( path );
+	}
+	else if( WriterImplementation *writer = WriterImplementation::writer( m_implementation.get() ) )
+	{
+		writer->path( path );
+	}
+
+	h.append( &path[0], path.size() );
+	h.append( name );
+}
+
 bool SceneCache::hasObject() const
 {
 	return m_implementation->hasObject();
