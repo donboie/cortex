@@ -73,6 +73,7 @@ class USDScene : public IECoreScene::SceneInterface
 		NameList setNames() const override;
 		IECore::ConstPathMatcherDataPtr readSet( const Name &name ) const override;
 		void writeSet( const Name &name, const IECore::PathMatcherData *set ) override;
+		void hashSet( const Name &name, IECore::MurmurHash &h ) const override;
 
 		bool hasObject() const override;
 		IECoreScene::PrimitiveVariableMap readObjectPrimitiveVariables( const std::vector<IECore::InternedString> &primVarNames, double time ) const override;

@@ -1863,6 +1863,16 @@ void USDScene::writeSet( const Name &name, const IECore::PathMatcherData *set )
 	}
 }
 
+void USDScene::hashSet( const Name &name, IECore::MurmurHash &h ) const
+{
+	SceneInterface::Path path;
+	convertPath( path, m_location->prim.GetPath() );
+
+	h.append( m_root->fileName() );
+	h.append( &path[0], path.size() );
+	h.append( name );
+}
+
 bool USDScene::hasObject() const
 {
 	return isConvertible( m_location->prim );
