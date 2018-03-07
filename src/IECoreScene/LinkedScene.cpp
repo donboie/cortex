@@ -810,6 +810,90 @@ bool LinkedScene::hasObject() const
 	}
 }
 
+SceneInterface::NameList LinkedScene::setNames() const
+{
+	if( m_linkedScene )
+	{
+		return m_linkedScene->setNames();
+	}
+	else
+	{
+		SceneInterface::NameList setNames = m_mainScene->setNames();
+
+		SceneInterface::Path currentPath;
+		path( currentPath );
+
+		// todo we need to cache the link Locations
+		PathMatcherDataPtr linkedSceneLocations = linkLocations();
+		const PathMatcher &linkLocations = linkedSceneLocations->readable();
+		for( PathMatcher::Iterator it = linkLocations.begin(); it != linkLocations.end(); ++it )
+		{
+			SceneInterface::NameList linkedSceneSetNames = scene( *it, SceneInterface::ThrowIfMissing )->setNames();
+			setNames.insert( setNames.begin(), linkedSceneSetNames.begin(), linkedSceneSetNames.end() );
+		}
+
+		std::sort( setNames.begin(), setNames.end() );
+		return NameList( setNames.begin(), std::unique( setNames.begin(), setNames.end() ) );
+	}
+}
+
+IECore::ConstPathMatcherDataPtr LinkedScene::readSet( const SceneInterface::Name &name ) const
+{
+	if( m_linkedScene )
+	{
+		return m_linkedScene->readSet( name );
+	}
+	else
+	{
+		// todo only copy if we need to
+		IECore::PathMatcherDataPtr result = m_mainScene->readSet( name )->copy();
+
+		// todo we need to cache the link Locations
+		PathMatcherDataPtr linkedSceneLocations = linkLocations();
+		const PathMatcher &linkLocations = linkedSceneLocations->readable();
+		for( PathMatcher::Iterator it = linkLocations.begin(); it != linkLocations.end(); ++it )
+		{
+			SceneInterface::Path p;
+			path( p );
+			std::string strPath;
+			SceneInterface::pathToString( *it, strPath );
+			IECore::ConstPathMatcherDataPtr linkedSceneSet = scene( *it, SceneInterface::ThrowIfMissing )->readSet( name );
+
+			result->writable().addPaths( linkedSceneSet->readable(), *it );
+		}
+
+		return result;
+	}
+}
+
+void LinkedScene::writeSet( const SceneInterface::Name &name, const IECore::PathMatcherData *set )
+{
+	if( m_linkedScene ) // todo check this condition.
+	{
+		SceneInterface::Path p;
+		path( p );
+		std::string strPath;
+		SceneInterface::pathToString( p, strPath );
+		throw IECore::Exception( boost::str( boost::format( "Unable to write set to linked scene location: '%1%'" ) % strPath ) );
+	}
+	else
+	{
+		m_mainScene->writeSet( name, set );
+	}
+}
+
+void LinkedScene::hashSet( const SceneInterface::Name &setName, IECore::MurmurHash &h ) const
+{
+	if( m_linkedScene )
+	{
+		m_linkedScene->hashSet( setName, h );
+	}
+	else
+	{
+		m_mainScene->hashSet( setName, h );
+	}
+}
+
 size_t LinkedScene::numObjectSamples() const
 {
 	if (!m_sampled)
@@ -1324,3 +1408,31 @@ void LinkedScene::hash( HashType hashType, double time, MurmurHash &h ) const
 	}
 }
 
+/// serialise this into the linked scene cache so it can just be loaded directly without having to traverse the entire scene
+IECore::PathMatcherDataPtr LinkedScene::linkLocations() const
+{
+	IECore::PathMatcherDataPtr pathMatcherData = new IECore::PathMatcherData();
+	recurseLinkLocations( pathMatcherData->writable() );
+	return pathMatcherData;
+}
+
+void LinkedScene::recurseLinkLocations( PathMatcher &pathMatcher ) const
+{
+	SceneInterface::NameList children;
+	childNames( children );
+
+	bool isLinkLocation = hasAttribute( fileNameLinkAttribute ) && hasAttribute( rootLinkAttribute );
+
+	if( isLinkLocation )
+	{
+		SceneInterface::Path p;
+		path( p );
+		pathMatcher.addPath( p );
+	}
+
+	for( const SceneInterface::Name &c : children )
+	{
+		ConstSceneInterfacePtr childScene = child( c, SceneInterface::ThrowIfMissing );
+		runTimeCast<const LinkedScene>( childScene.get() )->recurseLinkLocations( pathMatcher );
+	}
+}
