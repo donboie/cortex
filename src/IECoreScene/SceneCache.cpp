@@ -84,6 +84,7 @@ static InternedString localTagsEntry("localTags");
 static InternedString ancestorTagsEntry("ancestorTags");
 static InternedString descendentTagsEntry("descendentTags");
 static InternedString setsEntry("sets");
+static InternedString childSetsEntry("childSets");
 
 const SceneInterface::Name &SceneCache::animatedObjectTopologyAttribute = InternedString( "sceneInterface:animatedObjectTopology" );
 const SceneInterface::Name &SceneCache::animatedObjectPrimVarsAttribute = InternedString( "sceneInterface:animatedObjectPrimVars" );
@@ -259,6 +260,24 @@ class SceneCache::Implementation : public RefCounted
 				return false;
 			}
 			return children->hasEntry( name );
+		}
+
+		/// Returns the set names defined at locations which are descended from this
+		/// location, excluding the current location.
+		NameList readChildSets() const
+		{
+			IndexedIOPtr childSetsIO = m_indexedIO->subdirectory( childSetsEntry, IndexedIO::NullIfMissing );
+
+			NameList childSets;
+
+			if( !childSetsIO )
+			{
+				return childSets;
+			}
+
+			childSetsIO->entryIds( childSets, IndexedIO::Directory );
+
+			return childSets;
 		}
 
 	protected :
@@ -767,10 +786,16 @@ class SceneCache::ReaderImplementation : public SceneCache::Implementation
 			SceneInterface::Path childPrefix = prefix;
 			childPrefix.resize( prefix.size() + 1 );
 
-			for( InternedString &childName : children )
+			NameList childSets = readChildSets();
+
+			// todo need to replace this linear scan with something with faster query performance
+			if( std::find( childSets.begin(), childSets.end(), name ) != childSets.end() )
 			{
-				*childPrefix.rbegin() = childName;
-				child( childName, SceneInterface::ThrowIfMissing )->recurseReadSet( childPrefix, name, pathMatcher );
+				for( InternedString &childName : children )
+				{
+					*childPrefix.rbegin() = childName;
+					child( childName, SceneInterface::ThrowIfMissing )->recurseReadSet( childPrefix, name, pathMatcher );
+				}
 			}
 		}
 
@@ -780,18 +805,14 @@ class SceneCache::ReaderImplementation : public SceneCache::Implementation
 			IndexedIOPtr setsIO = m_indexedIO->subdirectory( setsEntry, IECore::IndexedIO::NullIfMissing );
 			if( setsIO )
 			{
-				IndexedIO::EntryIDList localSetNames;
 				setsIO->entryIds( setNames, IndexedIO::Directory );
 			}
 
 			NameList children;
 			childNames( children );
 
-			for( const InternedString &childName : children )
-			{
-				NameList childSetNames = child( childName, SceneInterface::ThrowIfMissing )->setNames();
-				setNames.insert( setNames.begin(), childSetNames.begin(), childSetNames.end() );
-			}
+			NameList childSets = readChildSets();
+			setNames.insert( setNames.end(), childSets.begin(), childSets.end() );
 
 			// ensure our set names are unique
 			std::sort( setNames.begin(), setNames.end() );
@@ -1860,6 +1881,16 @@ class SceneCache::WriterImplementation : public SceneCache::Implementation
 				// propagate tags to parent
 				readTags( tags, SceneInterface::LocalTag | SceneInterface::DescendantTag );
 				m_parent->writeTags( tags, SceneInterface::DescendantTag );
+
+				IndexedIOPtr setsIO = m_indexedIO->subdirectory( setsEntry, IndexedIO::NullIfMissing );
+				IndexedIO::EntryIDList setNames;
+				if ( setsIO )
+				{
+					setsIO->entryIds( setNames, IndexedIO::Directory );
+				}
+
+				m_parent->writeChildSets( readChildSets() );
+				m_parent->writeChildSets( setNames );
 			}
 
 			// deallocate children since we now computed everything from them anyways...
@@ -1877,6 +1908,24 @@ class SceneCache::WriterImplementation : public SceneCache::Implementation
 				}
 			}
 			m_sampleTimesMap = nullptr;
+		}
+
+
+		// walk up to the root writing the child set names at every location
+		void writeChildSets( const NameList &childSets )
+		{
+			if ( childSets.empty() )
+			{
+				return;
+			}
+
+			IndexedIOPtr childSetsIO = m_indexedIO->subdirectory( childSetsEntry, IndexedIO::CreateIfMissing );
+
+			for( const Name &childSet : childSets )
+			{
+				childSetsIO->subdirectory( childSet, IndexedIO::CreateIfMissing );
+			}
+
 		}
 
 		/// This functions transforms the bounding boxes with the animated transforms and also scales the bounding boxes in a way that it
