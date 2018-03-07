@@ -960,6 +960,43 @@ class AlembicSceneTest( unittest.TestCase ) :
 
 		self.assertEqual( set( H.readSet( "foo" ).value.paths() ), set( ['/I/J/K/L/M/N'] ) )
 
+	def testSetHashes( self ):
+
+		# A
+		#   B
+
+		# Note we don't need to write out any sets to test the hashing a
+		# as we only use scene graph location, filename & set name for the hash
+
+		writeRoot = IECoreScene.SceneInterface.create( "/tmp/test.abc", IECore.IndexedIO.OpenMode.Write )
+
+		A = writeRoot.createChild("A")
+		B = A.createChild("B")
+
+		del A, B, writeRoot
+
+		shutil.copyfile('/tmp/test.abc', '/tmp/testAnotherFile.abc')
+
+		readRoot = IECoreScene.SceneInterface.create( "/tmp/test.abc", IECore.IndexedIO.OpenMode.Read )
+		readRoot2 = IECoreScene.SceneInterface.create( "/tmp/testAnotherFile.abc", IECore.IndexedIO.OpenMode.Read )
+
+		readRoot3 = IECoreScene.SceneInterface.create( "/tmp/test.abc", IECore.IndexedIO.OpenMode.Read )
+
+		A = readRoot.child('A')
+		Ap = readRoot.child('A')
+
+		self.assertNotEqual( A.hashSet("dummySetA"), A.hashSet("dummySetB") )
+		self.assertEqual( A.hashSet("dummySetA"), Ap.hashSet("dummySetA") )
+
+		B = A.child("B")
+
+		self.assertNotEqual( A.hashSet("dummySetA"), B.hashSet("dummySetA") )
+
+		A2 = readRoot2.child('A')
+		self.assertNotEqual( A.hashSet("dummySetA"), A2.hashSet("dummySetA") )
+
+		A3 = readRoot3.child('A')
+		self.assertEqual( A.hashSet("dummySetA"), A3.hashSet("dummySetA") )
 
 if __name__ == "__main__":
     unittest.main()

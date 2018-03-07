@@ -43,6 +43,7 @@
 #include "IECore/MessageHandler.h"
 #include "IECore/SimpleTypedData.h"
 
+
 #include "Alembic/AbcCoreFactory/IFactory.h"
 #include "Alembic/AbcCoreOgawa/ReadWrite.h"
 #include "Alembic/AbcGeom/ArchiveBounds.h"
@@ -489,6 +490,18 @@ class AlembicScene::AlembicReader : public AlembicIO
 			recurseReadSet( prefix, name, pathMatcher );
 
 			return new PathMatcherData( pathMatcher );
+		}
+
+		void hashSet( const SceneInterface::Name& setName, IECore::MurmurHash &h ) const
+		{
+			SceneInterface::Path p;
+
+			// read the current path into p
+			path( p );
+
+			h.append( fileName() );
+			h.append( &p[0], p.size() );
+			h.append( setName );
 		}
 
 		// Additional hashes
@@ -1166,6 +1179,11 @@ IECore::ConstPathMatcherDataPtr AlembicScene::readSet( const Name &name ) const
 void AlembicScene::writeSet( const Name &name, const IECore::PathMatcherData *set )
 {
 	writer()->writeSet( name, set );
+}
+
+void AlembicScene::hashSet( const Name& setName, IECore::MurmurHash &h ) const
+{
+	reader()->hashSet( setName, h);
 }
 
 // Object

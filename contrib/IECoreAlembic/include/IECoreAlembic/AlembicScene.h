@@ -90,6 +90,7 @@ class IECOREALEMBIC_API AlembicScene : public IECoreScene::SampledSceneInterface
 		NameList setNames() const override;
 		IECore::ConstPathMatcherDataPtr readSet( const Name &name ) const override;
 		void writeSet( const Name &name, const IECore::PathMatcherData *set ) override;
+		void hashSet( const Name& setName, IECore::MurmurHash &h ) const override;
 
 		bool hasObject() const override;
 		size_t numObjectSamples() const override;
