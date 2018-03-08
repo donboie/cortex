@@ -162,7 +162,7 @@ class IECORESCENE_API LinkedScene : public  SampledSceneInterface
 
 	private :
 
-		LinkedScene( SceneInterface *mainScene, const SceneInterface *linkedScene, int rootLinkDepth, bool readOnly, bool atLink, bool timeRemapped );
+		LinkedScene( SceneInterface *mainScene, const SceneInterface *linkedScene, IECore::PathMatcherDataPtr linkLocationsData, int rootLinkDepth, bool readOnly, bool atLink, bool timeRemapped );
 
 		ConstSceneInterfacePtr expandLink( const IECore::StringData *fileName, const IECore::InternedStringVectorData *root, int &linkDepth );
 
@@ -183,6 +183,9 @@ class IECORESCENE_API LinkedScene : public  SampledSceneInterface
 		bool m_sampled;
 		bool m_timeRemapped;
 		// \todo: std::map< Path, LinkedScenes > for quick scene calls... built by scene... dies with the instance (usually only root uses it).
+
+		/// locations of all links in the scene.
+		IECore::PathMatcherDataPtr m_linkLocationsData;
 
 		static const IECore::InternedString g_fileName;
 		static const IECore::InternedString g_root;
