@@ -794,14 +794,11 @@ class SceneCacheTest( unittest.TestCase ) :
 		M = L.createChild("M")
 		N = M.createChild("N")
 
-		def makePathMatcherData( paths ) :
-			return IECore.PathMatcherData( IECore.PathMatcher( paths ) )
-
-		B.writeSet( "don", makePathMatcherData( ['/E'] ) )
-		B.writeSet( "john", makePathMatcherData( ['/F'] ) )
-		C.writeSet( "don", makePathMatcherData( ['/'] ) )
-		D.writeSet( "john", makePathMatcherData( ['/G'] ) )
-		K.writeSet( "foo", makePathMatcherData( ['/L/M/N'] ) )
+		B.writeSet( "don", IECore.PathMatcher( ['/E'] ) )
+		B.writeSet( "john", IECore.PathMatcher( ['/F'] ) )
+		C.writeSet( "don", IECore.PathMatcher( ['/'] ) )
+		D.writeSet( "john", IECore.PathMatcher( ['/G'] ) )
+		K.writeSet( "foo", IECore.PathMatcher( ['/L/M/N'] ) )
 
 		del N, M, L, K, J, I, H, G, F, E, D, C, B, A, writeRoot
 
@@ -822,12 +819,12 @@ class SceneCacheTest( unittest.TestCase ) :
 		self.assertEqual( set( B.childNames() ), set( ['E', 'F'] ) )
 		self.assertEqual( D.childNames(), ['G'] )
 
-		self.assertEqual( set(B.readSet("don").value.paths() ), set(['/E'] ) )
-		self.assertEqual( set(B.readSet("john").value.paths() ), set(['/F'] ) )
-		self.assertEqual( set(C.readSet("don").value.paths() ), set(['/'] ) )
-		self.assertEqual( set(D.readSet("john").value.paths() ), set(['/G'] ) )
+		self.assertEqual( set(B.readSet("don").paths() ), set(['/E'] ) )
+		self.assertEqual( set(B.readSet("john").paths() ), set(['/F'] ) )
+		self.assertEqual( set(C.readSet("don").paths() ), set(['/'] ) )
+		self.assertEqual( set(D.readSet("john").paths() ), set(['/G'] ) )
 
-		self.assertEqual( set(E.readSet("don").value.paths() ), set([] ) )
+		self.assertEqual( set(E.readSet("don").paths() ), set() )
 
 		# Check the setNames returns all the sets in it's subtree
 		self.assertEqual( set( B.setNames() ), set( ['don', 'john'] ) )
@@ -838,10 +835,10 @@ class SceneCacheTest( unittest.TestCase ) :
 
 		self.assertEqual( len( A.setNames() ), 2)
 		self.assertEqual( set( A.setNames() ), set( ['don', 'john'] ) )
-		self.assertEqual( set( A.readSet( "don" ).value.paths() ), set( ['/B/E', '/C'] ) )
-		self.assertEqual( set( A.readSet( "john" ).value.paths() ), set( ['/B/F', '/D/G'] ) )
+		self.assertEqual( set( A.readSet( "don" ).paths() ), set( ['/B/E', '/C'] ) )
+		self.assertEqual( set( A.readSet( "john" ).paths() ), set( ['/B/F', '/D/G'] ) )
 
-		self.assertEqual( set( H.readSet( "foo" ).value.paths() ), set( ['/I/J/K/L/M/N'] ) )
+		self.assertEqual( set( H.readSet( "foo" ).paths() ), set( ['/I/J/K/L/M/N'] ) )
 
 	def testSetHashes( self ):
 

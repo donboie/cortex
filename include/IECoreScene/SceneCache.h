@@ -114,8 +114,8 @@ class IECORESCENE_API SceneCache : public SampledSceneInterface
 		void writeTags( const NameList &tags ) override;
 
 		NameList setNames() const override;
-		IECore::ConstPathMatcherDataPtr readSet( const Name &name ) const override;
-		void writeSet( const Name &name, const IECore::PathMatcherData *set ) override;
+		IECore::PathMatcher readSet( const Name &name ) const override;
+		void writeSet( const Name &name, IECore::PathMatcher set ) override;
 		void hashSet( const Name &name, IECore::MurmurHash &h ) const override;
 
 		bool hasObject() const override;

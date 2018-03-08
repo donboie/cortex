@@ -764,13 +764,13 @@ class SceneCache::ReaderImplementation : public SceneCache::Implementation
 			return reader;
 		}
 
-		ConstPathMatcherDataPtr readSet( const Name &name ) const
+		PathMatcher readSet( const Name &name ) const
 		{
 			SceneInterface::Path prefix;
 			PathMatcher pathMatcher;
 			recurseReadSet( prefix, name, pathMatcher );
 
-			return new PathMatcherData( pathMatcher );
+			return pathMatcher;
 		}
 
 		void recurseReadSet( const SceneInterface::Path &prefix, const Name &name, IECore::PathMatcher &pathMatcher ) const
@@ -1411,10 +1411,13 @@ class SceneCache::WriterImplementation : public SceneCache::Implementation
 			}
 		}
 
-		void writeSet(const Name& name, const IECore::PathMatcherData *set )
+		void writeSet(const Name& name, IECore::PathMatcher set )
 		{
+			IECore::PathMatcherDataPtr setData = new IECore::PathMatcherData();
+			setData->writable() = set;
+
 			IndexedIOPtr setsIO = m_indexedIO->subdirectory( setsEntry, IndexedIO::CreateIfMissing );
-			set->Object::save( setsIO, name );
+			setData->Object::save( setsIO, name );
 		}
 
 		WriterImplementationPtr child( const Name &name, MissingBehaviour missingBehaviour )
@@ -2325,13 +2328,13 @@ SceneInterface::NameList SceneCache::setNames() const
 	return reader->setNames();
 }
 
-IECore::ConstPathMatcherDataPtr SceneCache::readSet( const Name &name ) const
+IECore::PathMatcher SceneCache::readSet( const Name &name ) const
 {
 	ReaderImplementation *reader = ReaderImplementation::reader( m_implementation.get() );
 	return reader->readSet( name );
 }
 
-void SceneCache::writeSet( const Name &name, const IECore::PathMatcherData *set )
+void SceneCache::writeSet( const Name &name, IECore::PathMatcher set )
 {
 	WriterImplementation *writer = WriterImplementation::writer( m_implementation.get() );
 	writer->writeSet( name, set );
