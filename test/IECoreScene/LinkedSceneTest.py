@@ -1066,9 +1066,10 @@ class LinkedSceneTest( unittest.TestCase ) :
 
 		linkedA = D.child( 'A' )
 
-		with self.assertRaises( Exception ) as cm :
+		with self.assertRaises( RuntimeError ) as cm:
 			linkedA.writeSet( 'foo', self.makePathMatcherData( ['/'] ) )
 
+		print type(cm.exception)
 		self.assertEqual( cm.exception.message, "Exception : Unable to write set to linked scene location: '/C/D/A'" )
 
 		del D, C, w
