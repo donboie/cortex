@@ -881,7 +881,7 @@ SceneInterface::NameList LinkedScene::setNames() const
 	}
 }
 
-IECore::ConstPathMatcherDataPtr LinkedScene::readSet( const SceneInterface::Name &name ) const
+IECore::PathMatcher LinkedScene::readSet( const SceneInterface::Name &name ) const
 {
 	if( m_linkedScene )
 	{
@@ -890,7 +890,7 @@ IECore::ConstPathMatcherDataPtr LinkedScene::readSet( const SceneInterface::Name
 	else
 	{
 		// todo only copy if we need to
-		IECore::PathMatcherDataPtr result = m_mainScene->readSet( name )->copy();
+		IECore::PathMatcher result = m_mainScene->readSet( name );
 
 		const PathMatcher links = runTimeCast<const LinkedScene>( scene( SceneInterface::rootPath ) )->linkLocations();
 		for( PathMatcher::Iterator it = links.begin(); it != links.end(); ++it )
@@ -899,16 +899,16 @@ IECore::ConstPathMatcherDataPtr LinkedScene::readSet( const SceneInterface::Name
 			path( p );
 			std::string strPath;
 			SceneInterface::pathToString( *it, strPath );
-			IECore::ConstPathMatcherDataPtr linkedSceneSet = scene( *it, SceneInterface::ThrowIfMissing )->readSet( name );
+			IECore::PathMatcher linkedSceneSet = scene( *it, SceneInterface::ThrowIfMissing )->readSet( name );
 
-			result->writable().addPaths( linkedSceneSet->readable(), *it );
+			result.addPaths( linkedSceneSet, *it );
 		}
 
 		return result;
 	}
 }
 
-void LinkedScene::writeSet( const SceneInterface::Name &name, const IECore::PathMatcherData *set )
+void LinkedScene::writeSet( const SceneInterface::Name &name, const IECore::PathMatcher set )
 {
 	if( m_linkedScene ) // todo check this condition.
 	{

@@ -1022,8 +1022,8 @@ class LinkedSceneTest( unittest.TestCase ) :
 		A = w.createChild( "A" )
 		B = A.createChild( "B" )
 
-		A.writeSet( "don", self.makePathMatcherData( ['/B'] ) )
-		B.writeSet( "stew", self.makePathMatcherData( ['/'] ) )
+		A.writeSet( "don", IECore.PathMatcher( ['/B'] ) )
+		B.writeSet( "stew", IECore.PathMatcher( ['/'] ) )
 		del B, A, w
 
 		r = IECoreScene.LinkedScene( sceneFile, IECore.IndexedIO.OpenMode.Read )
@@ -1031,8 +1031,8 @@ class LinkedSceneTest( unittest.TestCase ) :
 		B = A.child( "B" )
 
 		self.assertEqualUnordered( A.setNames(), ["don", "stew"] )
-		self.assertEqualUnordered( A.readSet( "don" ).value.paths(), ['/B'] )
-		self.assertEqualUnordered( B.readSet( "stew" ).value.paths(), ['/'] )
+		self.assertEqualUnordered( A.readSet( "don" ).paths(), ['/B'] )
+		self.assertEqualUnordered( B.readSet( "stew" ).paths(), ['/'] )
 
 	def testWritingSetToLinkSceneLocationRaisesException( self ) :
 
@@ -1045,8 +1045,8 @@ class LinkedSceneTest( unittest.TestCase ) :
 		A = w.createChild( "A" )
 		B = A.createChild( "B" )
 
-		A.writeSet( "don", self.makePathMatcherData( ['/B'] ) )
-		B.writeSet( "stew", self.makePathMatcherData( ['/'] ) )
+		A.writeSet( "don", IECore.PathMatcher( ['/B'] ) )
+		B.writeSet( "stew", IECore.PathMatcher( ['/'] ) )
 
 		del B, A, w
 
@@ -1067,7 +1067,7 @@ class LinkedSceneTest( unittest.TestCase ) :
 		linkedA = D.child( 'A' )
 
 		with self.assertRaises( Exception ):
-			linkedA.writeSet( 'foo', self.makePathMatcherData( ['/'] ) )
+			linkedA.writeSet( 'foo', IECore.PathMatcher( ['/'] ) )
 
 		del D, C, w
 
@@ -1088,8 +1088,8 @@ class LinkedSceneTest( unittest.TestCase ) :
 		A = w.createChild( "A" )
 		B = A.createChild( "B" )
 
-		A.writeSet( "don", self.makePathMatcherData( ['/'] ) )
-		B.writeSet( "stew", self.makePathMatcherData( ['/'] ) )
+		A.writeSet( "don", IECore.PathMatcher( ['/'] ) )
+		B.writeSet( "stew", IECore.PathMatcher( ['/'] ) )
 
 		del B, A, w
 
@@ -1116,8 +1116,8 @@ class LinkedSceneTest( unittest.TestCase ) :
 		# print ""
 		# printTree( r, 0 )
 
-		self.assertEqual( r.readSet( "don" ), self.makePathMatcherData(['/C/D/A'] ) )
-		self.assertEqual( r.readSet( "stew" ), self.makePathMatcherData(['/C/D/A/B'] ) )
+		self.assertEqual( r.readSet( "don" ), IECore.PathMatcher(['/C/D/A'] ) )
+		self.assertEqual( r.readSet( "stew" ), IECore.PathMatcher(['/C/D/A/B'] ) )
 
 if __name__ == "__main__":
 	unittest.main()
