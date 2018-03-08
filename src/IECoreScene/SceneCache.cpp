@@ -826,12 +826,11 @@ class SceneCache::ReaderImplementation : public SceneCache::Implementation
 		{
 			IndexedIOPtr setsIO = m_indexedIO->subdirectory( setsEntry, IECore::IndexedIO::NullIfMissing );
 
-			PathMatcherDataPtr pathMatcherData;
 			if( setsIO  && setsIO->hasEntry( name ) )
 			{
 				ObjectPtr obj = IECore::Object::load( setsIO, name );
 
-				if ( pathMatcherData = IECore::runTimeCast<PathMatcherData>( obj ) )
+				if ( PathMatcherDataPtr pathMatcherData = IECore::runTimeCast<PathMatcherData>( obj ) )
 				{
 					return pathMatcherData;
 				}
@@ -1259,7 +1258,7 @@ class SceneCache::WriterImplementation : public SceneCache::Implementation
 
 			if ( !attribute )
 			{
-				throw Exception( "writeAttribute: NULL attribute data!" );
+				throw Exception( boost::str( boost::format( "SceneCache::writeAttribute ( name: '%1%' ): NULL attribute data!  ") % name.string() ) );
 			}
 
 			std::pair< AttributeSamplesMap::iterator, bool > it = m_attributeSampleTimes.insert( std::pair< SceneCache::Name, SampleTimes >( name, SampleTimes() ) );
@@ -1268,7 +1267,13 @@ class SceneCache::WriterImplementation : public SceneCache::Implementation
 			{
 				if ( *(sampleTimes.rbegin()) >= time )
 				{
-					throw Exception( "Times must be incremental amongst calls to writeAttribute for the same attribute!" );
+					throw Exception(
+						boost::str(
+							boost::format(
+								"SceneCache::writeAttribute ( name: '%1%' ) : Times must be incremental amongst calls to writeAttribute for the same attribute!"
+							) % name.string()
+						)
+					);
 				}
 			}
 			size_t sampleIndex = sampleTimes.size();
@@ -1462,6 +1467,23 @@ class SceneCache::WriterImplementation : public SceneCache::Implementation
 			return result;
 		}
 
+		SceneCache::ImplementationPtr scene( const Path &path, MissingBehaviour missingBehaviour )
+		{
+			// go to root of the scene and than CD to the location...
+			WriterImplementation *root = this;
+			while( root->m_parent )
+			{
+				root = root->m_parent;
+			}
+
+			WriterImplementationPtr location = root;
+			for ( Path::const_iterator it = path.begin(); location && it != path.end(); it++)
+			{
+				location = location->child( *it, missingBehaviour );
+			}
+			return location;
+		}
+
 		static WriterImplementation *writer( Implementation *impl, bool throwException = true )
 		{
 			WriterImplementation *writer = dynamic_cast< WriterImplementation* >( impl );
@@ -1491,7 +1513,7 @@ class SceneCache::WriterImplementation : public SceneCache::Implementation
 		{
 			if ( !m_sampleTimesMap )
 			{
-				throw Exception( "This scene has already been flushed to disk. You can't make further changes to it." );
+				throw Exception( boost::str( boost::format( " '%1%' has already been flushed to disk. You can't make further changes to it." ) % fileName() ) );
 			}
 		}
 
@@ -2453,14 +2475,28 @@ SceneInterfacePtr SceneCache::createChild( const Name &name )
 
 SceneInterfacePtr SceneCache::scene( const Path &path, MissingBehaviour missingBehaviour )
 {
-	ReaderImplementation *reader = ReaderImplementation::reader( m_implementation.get() );
-	ImplementationPtr impl = reader->scene( path, missingBehaviour );
-	if ( !impl )
+	if (ReaderImplementation *reader = ReaderImplementation::reader( m_implementation.get(), false ) )
 	{
-        	return nullptr;
+		ImplementationPtr impl = reader->scene( path, missingBehaviour );
+		if( !impl )
+		{
+			return nullptr;
+		}
+
+		return duplicate( impl );
+	}
+	else if (WriterImplementation *writer = WriterImplementation::writer( m_implementation.get(), false ) )
+	{
+		ImplementationPtr impl = writer->scene( path, missingBehaviour );
+		if( !impl )
+		{
+			return nullptr;
+		}
+
+		return duplicate( impl );
 	}
 
-	return duplicate( impl );
+	return nullptr;
 }
 
 ConstSceneInterfacePtr SceneCache::scene( const Path &path, SceneCache::MissingBehaviour missingBehaviour ) const
