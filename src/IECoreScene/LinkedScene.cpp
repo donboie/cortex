@@ -824,9 +824,8 @@ SceneInterface::NameList LinkedScene::setNames() const
 		path( currentPath );
 
 		// todo we need to cache the link Locations
-		PathMatcherDataPtr linkedSceneLocations = linkLocations();
-		const PathMatcher &linkLocations = linkedSceneLocations->readable();
-		for( PathMatcher::Iterator it = linkLocations.begin(); it != linkLocations.end(); ++it )
+		const PathMatcher links = linkLocations();
+		for( PathMatcher::Iterator it = links.begin(); it != links.end(); ++it )
 		{
 			SceneInterface::NameList linkedSceneSetNames = scene( *it, SceneInterface::ThrowIfMissing )->setNames();
 			setNames.insert( setNames.begin(), linkedSceneSetNames.begin(), linkedSceneSetNames.end() );
@@ -849,9 +848,8 @@ IECore::ConstPathMatcherDataPtr LinkedScene::readSet( const SceneInterface::Name
 		IECore::PathMatcherDataPtr result = m_mainScene->readSet( name )->copy();
 
 		// todo we need to cache the link Locations
-		PathMatcherDataPtr linkedSceneLocations = linkLocations();
-		const PathMatcher &linkLocations = linkedSceneLocations->readable();
-		for( PathMatcher::Iterator it = linkLocations.begin(); it != linkLocations.end(); ++it )
+		const PathMatcher links = linkLocations();
+		for( PathMatcher::Iterator it = links.begin(); it != links.end(); ++it )
 		{
 			SceneInterface::Path p;
 			path( p );
@@ -1409,11 +1407,11 @@ void LinkedScene::hash( HashType hashType, double time, MurmurHash &h ) const
 }
 
 /// serialise this into the linked scene cache so it can just be loaded directly without having to traverse the entire scene
-IECore::PathMatcherDataPtr LinkedScene::linkLocations() const
+IECore::PathMatcher LinkedScene::linkLocations() const
 {
-	IECore::PathMatcherDataPtr pathMatcherData = new IECore::PathMatcherData();
-	recurseLinkLocations( pathMatcherData->writable() );
-	return pathMatcherData;
+	IECore::PathMatcher pathMatcher;
+	recurseLinkLocations( pathMatcher );
+	return pathMatcher;
 }
 
 void LinkedScene::recurseLinkLocations( PathMatcher &pathMatcher ) const

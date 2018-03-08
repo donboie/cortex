@@ -172,7 +172,7 @@ class IECORESCENE_API LinkedScene : public  SampledSceneInterface
 		double remappedLinkTime( double time ) const;
 		double remappedLinkTimeAtSample( size_t sampleIndex ) const;
 
-		IECore::PathMatcherDataPtr linkLocations() const;
+		IECore::PathMatcher linkLocations() const;
 		void recurseLinkLocations( IECore::PathMatcher &pathMatcher ) const;
 
 		SceneInterfacePtr m_mainScene;
