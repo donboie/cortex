@@ -69,6 +69,12 @@ class USDScene : public IECoreScene::SceneInterface
 		bool hasTag( const Name &name, int filter ) const override;
 		void readTags( NameList &tags, int filter ) const override;
 		void writeTags( const NameList &tags ) override;
+
+		NameList setNames() const override;
+		IECore::PathMatcher readSet( const Name &name ) const override;
+		void writeSet( const Name &name, IECore::PathMatcher set ) override;
+		void hashSet( const Name &name, IECore::MurmurHash &h ) const override;
+
 		bool hasObject() const override;
 		IECoreScene::PrimitiveVariableMap readObjectPrimitiveVariables( const std::vector<IECore::InternedString> &primVarNames, double time ) const override;
 		void writeObject( const IECore::Object *object, double time ) override;
@@ -96,6 +102,8 @@ class USDScene : public IECoreScene::SceneInterface
 		void childNamesHash( double time, IECore::MurmurHash &h ) const;
 		void hierarchyHash( double time, IECore::MurmurHash &h ) const;
 
+		void recurseReadSet( const Path &prefix, const Name &name, IECore::PathMatcher &pathMatcher ) const;
+		IECore::PathMatcherDataPtr readLocalSet( const Name &name ) const;
 
 		IOPtr m_root;
 		LocationPtr m_location;
