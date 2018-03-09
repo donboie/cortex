@@ -34,6 +34,9 @@
 
 #include "IECoreScene/SceneCache.h"
 
+
+#include "TagSetAlgo.h"
+
 #include "IECoreScene/Primitive.h"
 #include "IECoreScene/SharedSceneInterfaces.h"
 #include "IECoreScene/VisibleRenderable.h"
@@ -2347,13 +2350,33 @@ void SceneCache::writeTags( const NameList &tags, bool descendentTags )
 SceneInterface::NameList SceneCache::setNames() const
 {
 	ReaderImplementation *reader = ReaderImplementation::reader( m_implementation.get() );
-	return reader->setNames();
+
+	// read the old style tags
+	SceneInterface::NameList names;
+	readTags( names, SceneInterface::LocalTag | SceneInterface::DescendantTag );
+
+	SceneInterface::NameList setNames = reader->setNames();
+
+	names.insert( names.end(), setNames.begin(), setNames.end() );
+
+	// ensure our set names are unique
+	std::sort( names.begin(), names.end() );
+	return NameList( names.begin(), std::unique( names.begin(), names.end() ) );
 }
 
 IECore::PathMatcher SceneCache::readSet( const Name &name ) const
 {
 	ReaderImplementation *reader = ReaderImplementation::reader( m_implementation.get() );
-	return reader->readSet( name );
+
+	PathMatcher set;
+
+	// read the old style tags and convert to a set
+	Private::loadSetWalk( this, name, set, SceneInterface::Path() );
+
+	// load the new sets
+	set.addPaths( reader->readSet( name ) );
+
+	return set;
 }
 
 void SceneCache::writeSet( const Name &name, IECore::PathMatcher set )

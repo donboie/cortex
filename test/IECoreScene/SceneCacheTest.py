@@ -879,6 +879,86 @@ class SceneCacheTest( unittest.TestCase ) :
 		A3 = readRoot3.child('A')
 		self.assertEqual( A.hashSet("dummySetA"), A3.hashSet("dummySetA") )
 
+	def testTagsConvertedToSets( self ) :
+
+		# A
+		#   B
+		#      E ['don']
+		#      F ['john']
+		#   C  ['don']
+		#   D
+		#      G ['john']
+		# H
+		#    I
+		#       J
+		#          K
+		#             L
+		#                M
+		#                   N ['foo']
+
+		writeRoot = IECoreScene.SceneCache( "/tmp/test.scc", IECore.IndexedIO.OpenMode.Write )
+
+		A = writeRoot.createChild( "A" )
+		B = A.createChild( "B" )
+		C = A.createChild( "C" )
+		D = A.createChild( "D" )
+		E = B.createChild( "E" )
+		F = B.createChild( "F" )
+		G = D.createChild( "G" )
+
+		H = writeRoot.createChild( "H" )
+		I = H.createChild( "I" )
+		J = I.createChild( "J" )
+		K = J.createChild( "K" )
+		L = K.createChild( "L" )
+		M = L.createChild( "M" )
+		N = M.createChild( "N" )
+
+		E.writeTags( ['don'] )
+		C.writeTags( ['don'] )
+		F.writeTags( ['john'] )
+		G.writeTags( ['john'] )
+		N.writeTags( ['foo'] )
+
+		del N, M, L, K, J, I, H, G, F, E, D, C, B, A, writeRoot
+
+		readRoot = IECoreScene.SceneCache( "/tmp/test.scc", IECore.IndexedIO.OpenMode.Read )
+
+		self.assertEqual( set( readRoot.childNames() ), set( ['A', 'H'] ) )
+
+		A = readRoot.child( 'A' )
+
+		self.assertEqual( set( A.childNames() ), set( ['B', 'C', 'D'] ) )
+		B = A.child( 'B' )
+		C = A.child( 'C' )
+		D = A.child( 'D' )
+		E = B.child( 'E' )
+		F = B.child( 'F' )
+		H = readRoot.child( 'H' )
+
+		self.assertEqual( set( B.childNames() ), set( ['E', 'F'] ) )
+		self.assertEqual( D.childNames(), ['G'] )
+
+		self.assertEqual( set( B.readSet( "don" ).paths() ), set( ['/E'] ) )
+		self.assertEqual( set( B.readSet( "john" ).paths() ), set( ['/F'] ) )
+		self.assertEqual( set( C.readSet( "don" ).paths() ), set( ['/'] ) )
+		self.assertEqual( set( D.readSet( "john" ).paths() ), set( ['/G'] ) )
+
+		self.assertEqual( set( E.readSet( "don" ).paths() ), set( ['/'] ) )
+
+		# Check the setNames returns all the sets in it's subtree
+		self.assertEqual( set( B.setNames() ), set( ['don', 'john'] ) )
+		self.assertEqual( set( C.setNames() ), set( ['don'] ) )
+		self.assertEqual( set( D.setNames() ), set( ['john'] ) )
+		self.assertEqual( set( E.setNames() ), set( ['don'] ) )
+		self.assertEqual( set( F.setNames() ), set( ['john'] ) )
+
+		self.assertEqual( len( A.setNames() ), 2 )
+		self.assertEqual( set( A.setNames() ), set( ['don', 'john'] ) )
+		self.assertEqual( set( A.readSet( "don" ).paths() ), set( ['/B/E', '/C'] ) )
+		self.assertEqual( set( A.readSet( "john" ).paths() ), set( ['/B/F', '/D/G'] ) )
+
+		self.assertEqual( set( H.readSet( "foo" ).paths() ), set( ['/I/J/K/L/M/N'] ) )
 
 	def testSampleTimeOrder( self ):
 
