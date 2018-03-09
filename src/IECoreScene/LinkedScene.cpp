@@ -926,6 +926,8 @@ void LinkedScene::writeSet( const SceneInterface::Name &name, const IECore::Path
 
 void LinkedScene::hashSet( const SceneInterface::Name &setName, IECore::MurmurHash &h ) const
 {
+	SampledSceneInterface::hashSet( setName, h );
+
 	if( m_linkedScene )
 	{
 		m_linkedScene->hashSet( setName, h );
