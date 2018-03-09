@@ -2387,6 +2387,8 @@ void SceneCache::writeSet( const Name &name, IECore::PathMatcher set )
 
 void SceneCache::hashSet( const Name &name, IECore::MurmurHash &h ) const
 {
+	SampledSceneInterface::hashSet( name, h );
+
 	h.append( m_implementation->fileName() );
 
 	// todo move path function to Implementation base class
