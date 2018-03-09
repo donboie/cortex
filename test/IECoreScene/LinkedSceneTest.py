@@ -43,6 +43,12 @@ import IECoreScene
 
 import imath
 
+def printTree( s, depth ) :
+
+	for c in s.childNames() :
+		print ' ' * depth + c
+		printTree( s.child( c ), depth + 1 )
+
 class LinkedSceneTest( unittest.TestCase ) :
 
 	@staticmethod
@@ -1073,12 +1079,6 @@ class LinkedSceneTest( unittest.TestCase ) :
 
 	def testCanReadSetNamesAndMembersOfLinkedScene( self ) :
 
-		def printTree( s, depth ) :
-
-			for c in s.childNames() :
-				print ' ' * depth + c
-				printTree( s.child( c ), depth + 1 )
-
 		# Linked to scene hierarchy (regular SceneCache)
 		# A {'don': ['/'] }
 		#    B {'stew' : ['/'] }
@@ -1113,11 +1113,50 @@ class LinkedSceneTest( unittest.TestCase ) :
 		r = IECoreScene.LinkedScene( sceneFile, IECore.IndexedIO.OpenMode.Read )
 		self.assertEqualUnordered( r.setNames(), ['don', 'stew'] )
 
-		# print ""
-		# printTree( r, 0 )
-
 		self.assertEqual( r.readSet( "don" ), IECore.PathMatcher(['/C/D/A'] ) )
 		self.assertEqual( r.readSet( "stew" ), IECore.PathMatcher(['/C/D/A/B'] ) )
+
+	def testCanReadTagsAsSets( self ):
+
+		# Linked to scene hierarchy (regular SceneCache)
+		# A tags = ['don']
+		#    B tags = ['stew']
+
+		sceneFile = "/tmp/target.scc"
+		w = IECoreScene.SceneCache( sceneFile, IECore.IndexedIO.OpenMode.Write )
+		A = w.createChild( "A" )
+		B = A.createChild( "B" )
+
+		A.writeTags( ['don'] )
+		B.writeTags( ['stew'] )
+
+		del B, A, w
+
+		r = IECoreScene.SceneCache( sceneFile, IECore.IndexedIO.OpenMode.Read )
+		A = r.child( "A" )
+
+		# Master scene which contains link to above scene
+		# C tags = ['don']
+		#    D -> [target.scc, /]
+
+		sceneFile = "/tmp/scene.lscc"
+		w = IECoreScene.LinkedScene( sceneFile, IECore.IndexedIO.OpenMode.Write )
+		C = w.createChild( "C" )
+		D = C.createChild( "D" )
+
+		C.writeTags(['don'])
+
+		D.writeLink( r )
+
+		del w, C, D
+
+		# ok lets read back in our linked scene and try and read the set names
+		r = IECoreScene.LinkedScene( sceneFile, IECore.IndexedIO.OpenMode.Read )
+		self.assertEqualUnordered( r.setNames(), ['don', 'stew'] )
+
+		self.assertEqual( r.readSet( "don" ), IECore.PathMatcher(['/C', '/C/D/A'] ) )
+		self.assertEqual( r.readSet( "stew" ), IECore.PathMatcher(['/C/D/A/B'] ) )
+
 
 if __name__ == "__main__":
 	unittest.main()
