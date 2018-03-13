@@ -1623,7 +1623,7 @@ bool USDScene::hasTag( const SceneInterface::Name &name, int filter ) const
 	pxr::TfToken pxrTag;
 	convert( pxrTag, name );
 
-	pxr::UsdCollectionAPI collection = pxr::UsdCollectionAPI::GetCollection( xform.GetPrim(), pxrTag );
+	pxr::UsdCollectionAPI collection = pxr::UsdCollectionAPI( xform.GetPrim(), pxrTag );
 
 	if (!collection)
 	{
@@ -1728,7 +1728,7 @@ void USDScene::writeTags( const SceneInterface::NameList &tags )
 		pxr::TfToken pxrTag;
 		convert( pxrTag, tag );
 
-		pxr::UsdCollectionAPI collection = pxr::UsdCollectionAPI::AddCollection( defaultPrim, pxrTag, pxr::UsdTokens->explicitOnly );
+		pxr::UsdCollectionAPI collection = pxr::UsdCollectionAPI::ApplyCollection( defaultPrim, pxrTag, pxr::UsdTokens->explicitOnly );
 		collection.CreateIncludesRel().AddTarget( m_location->prim.GetPath() );
 	}
 }
