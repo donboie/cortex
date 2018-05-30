@@ -112,16 +112,45 @@ VDBObject::VDBObject( const std::string &filename ) : m_unmodifiedFromFile( true
 	m_file->setCopyMaxBytes( 0 );
 	m_file->open(); //lazy loading of grid data is default enabling OPENVDB_DISABLE_DELAYED_LOAD will load the grids up front
 
-	openvdb::GridPtrVecPtr grids = m_file->readAllGridMetadata();
-
-	if ( !grids )
+	for(auto it = m_file->beginName(); it != m_file->endName(); ++it )
 	{
-		throw IECore::Exception( "VDBObject::VDBObject - no grids " );
+		openvdb::GridBase::Ptr grid = m_file->readGridMetadata( *it );
+
+		std::string gridUniqueName(*it);
+		std::string gridName = gridNames ? grid->getName() : gridUniqueName;
+
+		m_grids[gridName] = HashedGrid( grid, m_file, &gridUniqueName );
+
+		m_gridMask.push_back( *it );
+	}
+}
+
+VDBObject::VDBObject( VDBObject& other, const std::vector<std::string> *gridNames )
+{
+	openvdb::initialize(); // safe to call multiple times but has a performance hit of a mutex.
+
+	m_file = other.m_file;
+
+	if ( !m_file )
+	{
+		return;
 	}
 
-	for (auto grid : *grids)
+	for(auto it = m_file->beginName(); it != m_file->endName(); ++it )
 	{
-		m_grids[grid->getName()] = HashedGrid ( grid, m_file ) ;
+		if (gridNames && std::find(gridNames->begin(), gridNames->end(), *it ) == gridNames->end())
+		{
+			continue;
+		}
+
+		openvdb::GridBase::Ptr grid = m_file->readGridMetadata( *it );
+
+		std::string gridUniqueName(*it);
+		std::string gridName = gridNames ? grid->getName() : gridUniqueName;
+
+		m_grids[gridName] = HashedGrid( grid, m_file, &gridUniqueName );
+
+		m_gridMask.push_back( *it );
 	}
 }
 
@@ -188,6 +217,11 @@ Imath::Box3f VDBObject::bound() const
 	for( const auto &it : m_grids )
 	{
 		Imath::Box3f gridBounds = worldBound<float>( it.second.metadata().get() );
+
+		if ( !gridBounds.hasVolume() )
+		{
+			continue;
+		}
 
 		combinedBounds.extendBy( gridBounds );
 	}
@@ -260,6 +294,11 @@ IECore::CompoundObjectPtr VDBObject::metadata( const std::string &name )
 			const openvdb::Vec3i &v = static_cast<openvdb::Vec3IMetadata *>( metaIt->second.get() )->value();
 			metadata->members()[metaIt->first] = new V3iData( Imath::V3i( v.x(), v.y(), v.z() ) );
 		}
+		else if( metaIt->second->typeName() == openvdb::Vec3SMetadata::staticTypeName() )
+		{
+			const openvdb::Vec3s &v = static_cast<openvdb::Vec3SMetadata *>( metaIt->second.get() )->value();
+			metadata->members()[metaIt->first] = new V3fData( Imath::V3f( v.x(), v.y(), v.z() ) );
+		}
 		else
 		{
 			IECore::msg(
@@ -315,6 +354,11 @@ void VDBObject::hash( IECore::MurmurHash &h ) const
 	if( unmodifiedFromFile() && m_file )
 	{
 		h.append( m_file->filename() );
+
+		for (const auto gridName : m_gridMask)
+		{
+			h.append( gridName );
+		}
 		return;
 	}
 
@@ -337,6 +381,7 @@ void VDBObject::copyFrom( const IECore::Object *other, IECore::Object::CopyConte
 
 	m_grids = vdbObject->m_grids;
 	m_file = vdbObject->m_file;
+	m_gridMask = vdbObject->m_gridMask;
 	m_unmodifiedFromFile = vdbObject->m_unmodifiedFromFile;
 }
 
@@ -389,7 +434,7 @@ openvdb::GridBase::Ptr VDBObject::HashedGrid::grid() const
 {
 	if ( m_file )
 	{
-		m_grid = m_file->readGrid( m_grid->getName() );
+		m_grid = m_file->readGrid( !m_name.empty() ? m_name : m_grid->getName() );
 		m_file.reset();
 	}
 	return m_grid;

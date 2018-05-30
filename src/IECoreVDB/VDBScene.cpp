@@ -42,6 +42,10 @@
 
 #include "openvdb/openvdb.h"
 
+#include "boost/regex.hpp"
+#include "boost/lexical_cast.hpp"
+#include "boost/format.hpp"
+
 using namespace Imath;
 using namespace IECore;
 using namespace IECoreScene;
@@ -51,6 +55,17 @@ using namespace openvdb;
 namespace
 {
 
+int getIndex(const InternedString& name)
+{
+	boost::smatch matchResults;
+	boost::regex e("vdb([0-9]+)");
+	if ( boost::regex_match( name.string(), matchResults, e ) )
+	{
+		return boost::lexical_cast<int>(matchResults[1]);
+	}
+	return -1;
+
+}
 const SceneInterface::Name g_objectName("vdb");
 
 class VDBScene : public SceneInterface
@@ -62,8 +77,8 @@ class VDBScene : public SceneInterface
 
 		VDBScene( const std::string &fileName, IndexedIO::OpenMode openMode )
 		: SceneInterface(),
-			m_rootData( new RootData(fileName) )
-
+			m_rootData( new RootData(fileName) ),
+			m_index(-1)
 		{
 		}
 
@@ -108,7 +123,12 @@ class VDBScene : public SceneInterface
 
 		Imath::Box3d readBound( double time ) const override
 		{
-			const Imath::Box3f bound = rootData().m_vdbObject->bound();
+			Imath::Box3f bound;
+			if ( m_index >= 0 )
+				bound = rootData().m_indexedVDBs[m_index]->bound();
+			else
+			 	bound = rootData().m_vdbObject->bound();
+
 			return Imath::Box3d(bound.min, bound.max);
 		}
 
@@ -218,7 +238,10 @@ class VDBScene : public SceneInterface
 		{
 			if ( m_parent )
 			{
-				return rootData().m_vdbObject;
+				if (m_index == -1 )
+					return rootData().m_vdbObject;
+				else
+					return rootData().m_indexedVDBs[m_index];
 			}
 			else
 			{
@@ -244,9 +267,14 @@ class VDBScene : public SceneInterface
 		/// Convenience method to determine if a child exists
 		bool hasChild( const Name &name ) const override
 		{
-			if ( !m_parent && name == g_objectName)
+			if ( !m_parent )
 			{
-				return true;
+				if (name == g_objectName && m_rootData->m_indexedVDBs.empty() )
+				{
+					return true;
+				}
+
+				return getIndex( name ) > 0;
 			}
 
 			return false;
@@ -261,7 +289,17 @@ class VDBScene : public SceneInterface
 			}
 			else
 			{
-				childNames = { g_objectName };
+				if ( m_rootData->m_indexedVDBs.empty() )
+				{
+					childNames = { g_objectName };
+				}
+				else
+				{
+					for (size_t i = 0; i < m_rootData->m_indexedVDBs.size(); ++i)
+					{
+						childNames.push_back( InternedString( boost::str( boost::format("vdb%1%") % i ) ) );
+					}
+				}
 			}
 
 		}
@@ -273,7 +311,12 @@ class VDBScene : public SceneInterface
 		/// to the parent as it is written.
 		SceneInterfacePtr child( const Name &name, MissingBehaviour missingBehaviour = ThrowIfMissing ) override
 		{
+			int index = getIndex( name );
 			if ( !m_parent && name == g_objectName)
+			{
+				return new VDBScene( this );
+			}
+			else if (!m_parent && index != -1)
 			{
 				return new VDBScene( this );
 			}
@@ -306,51 +349,59 @@ class VDBScene : public SceneInterface
 		/// Returns a interface for querying the scene at the given path (full path).
 		SceneInterfacePtr scene( const Path &path, MissingBehaviour missingBehaviour = ThrowIfMissing ) override
 		{
-			if ( path.empty() )
+			if ( path.empty() && !m_parent)
 			{
-				if ( m_parent )
-				{
-					return m_parent;
-				}
-				else
-				{
-					return this;
-				}
+				return this;
 			}
-			else if ( path.size() == 1 && path[0] == g_objectName )
+			else if ( path.size() == 1 )
 			{
-				if ( m_parent )
+				int index = getIndex( path[0] );
+
+				if ( path[0] == g_objectName && index == -1 )
 				{
-					return this;
-				}
-				else
-				{
-					return new VDBScene( this );
-				}
-			}
-			else
-			{
-				if (missingBehaviour == ThrowIfMissing)
-				{
-					std::string pathStr;
-					IECoreScene::SceneInterface::pathToString(path, pathStr);
-					bool isRoot = (m_parent != nullptr);
-					if ( isRoot )
+					if( m_parent )
 					{
-						throw IECore::InvalidArgumentException("VDBSCene::scene(): no path called '" + pathStr + "' is root!" );
+						return this;
 					}
 					else
 					{
-						throw IECore::InvalidArgumentException("VDBSCene::scene(): no path called '" + pathStr + "'");
+						return new VDBScene( this );
 					}
-
 				}
-				else if (missingBehaviour == CreateIfMissing)
+				else if (index >= 0)
 				{
-					throw IECore::NotImplementedException("VDBScene::scene(): CreateIfMissing not supported");
+					if( m_parent )
+					{
+						return this;
+					}
+					else
+					{
+						return new VDBScene( this, index );
+					}
 				}
-				return nullptr;
 			}
+
+			if (missingBehaviour == ThrowIfMissing)
+			{
+				std::string pathStr;
+				IECoreScene::SceneInterface::pathToString(path, pathStr);
+				bool isRoot = (m_parent != nullptr);
+				if ( isRoot )
+				{
+					throw IECore::InvalidArgumentException("VDBSCene::scene(): no path called '" + pathStr + "' is root!" );
+				}
+				else
+				{
+					throw IECore::InvalidArgumentException("VDBSCene::scene(): no path called '" + pathStr + "'");
+				}
+
+			}
+			else if (missingBehaviour == CreateIfMissing)
+			{
+				throw IECore::NotImplementedException("VDBScene::scene(): CreateIfMissing not supported");
+			}
+			return nullptr;
+
 		}
 
 		/// Returns a const interface for querying the scene at the given path (full path).
@@ -369,28 +420,21 @@ class VDBScene : public SceneInterface
 			// has been updated to have separate hash functions for each HashType
 			SceneInterface::hash (hashType, time, h);
 			h.append( hashType );
+			h.append( m_index );
+			h.append( rootData().m_fileName );
+			h.append( m_parent == nullptr );
 
 			if ( hashType == ChildNamesHash )
 			{
-				h.append( m_parent == nullptr );
 			}
 			else if ( hashType == ObjectHash )
 			{
-				h.append( m_parent == nullptr );
-
-				if ( m_parent )
-				{
-					h.append( rootData().m_fileName );
-				}
 			}
 			else if ( hashType == BoundHash )
 			{
-				h.append( rootData().m_fileName );
 			}
 			else if ( hashType == HierarchyHash )
 			{
-				h.append( rootData().m_fileName );
-				h.append( m_parent == nullptr );
 			}
 			else if ( hashType == AttributesHash )
 			{
@@ -401,8 +445,8 @@ class VDBScene : public SceneInterface
 
 	private :
 
-		VDBScene( VDBScene::Ptr parent )
-		: m_parent( parent )
+		VDBScene( VDBScene::Ptr parent, int index = -1)
+		: m_parent( parent ), m_index( index )
 		{
 		}
 
@@ -412,13 +456,44 @@ class VDBScene : public SceneInterface
 		{
 			RootData(const std::string& filename)
 			: m_fileName(filename),
-			  m_vdbObject(new VDBObject(m_fileName) )
+			  m_vdbObject(new VDBObject( m_fileName ) )
 			{
-			}
+				std::vector<std::string> gridNames = m_vdbObject->gridNames();
 
+				boost::regex e("^([^\\[]+)\\[([0-9]+)\\]$");
+
+				std::map<int, std::vector<std::string> > indexedGrids;
+
+				boost::smatch matchResults;
+				int maxIndex = -1;
+				for (const auto & gridName : gridNames )
+				{
+					if ( boost::regex_match( gridName, matchResults, e ) )
+					{
+						int index = boost::lexical_cast<int>(matchResults[2]);
+						std::string gridName = matchResults[1];
+						indexedGrids[index].push_back( gridName );
+						maxIndex = std::max( maxIndex, index );
+					}
+				}
+
+				m_indexedVDBs.resize( maxIndex + 1 );
+
+				for (auto it : indexedGrids)
+				{
+					std::vector<std::string> gridMask;
+					for (const auto gridName : it.second)
+					{
+						gridMask.push_back( boost::str( boost::format( "%1%[%2%]" ) % gridName % it.first ) );
+					}
+
+					m_indexedVDBs[it.first] = new VDBObject( *m_vdbObject, &gridMask );
+				}
+			}
 
 			std::string m_fileName;
 			VDBObject::Ptr m_vdbObject;
+			std::vector<VDBObject::Ptr> m_indexedVDBs;
 		};
 
 		RootData &rootData() const
@@ -431,6 +506,7 @@ class VDBScene : public SceneInterface
 
 		std::shared_ptr<RootData> m_rootData;
 		Ptr m_parent;
+		int m_index;
 
 };
 

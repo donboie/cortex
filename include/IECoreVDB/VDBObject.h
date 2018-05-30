@@ -68,6 +68,8 @@ class IECOREVDB_API VDBObject : public IECoreScene::VisibleRenderable
 		//! initialise VDBObject from a vdb file
 		VDBObject( const std::string &filename );
 
+		VDBObject( VDBObject& other, const std::vector<std::string> *gridNames = nullptr );
+
 		IE_CORE_DECLAREEXTENSIONOBJECT( IECoreVDB::VDBObject, VDBObjectTypeId, IECoreScene::VisibleRenderable );
 
 		void insertGrid( openvdb::GridBase::Ptr grid );
@@ -106,9 +108,9 @@ class IECOREVDB_API VDBObject : public IECoreScene::VisibleRenderable
 				{
 				}
 
-				HashedGrid( openvdb::GridBase::Ptr grid, std::shared_ptr<openvdb::io::File> file )
+				HashedGrid( openvdb::GridBase::Ptr grid, std::shared_ptr<openvdb::io::File> file, const std::string *name = nullptr)
 					: m_grid( grid ),
-					m_hashValid( false ), m_file( file )
+					m_hashValid( false ), m_file( file ), m_name( name ? *name : std::string())
 				{
 				}
 
@@ -124,6 +126,8 @@ class IECOREVDB_API VDBObject : public IECoreScene::VisibleRenderable
 				mutable IECore::MurmurHash m_hash;
 
 				mutable std::shared_ptr<openvdb::io::File> m_file;
+
+				std::string m_name;
 		};
 
 		std::unordered_map<std::string, HashedGrid> m_grids;
@@ -132,7 +136,7 @@ class IECOREVDB_API VDBObject : public IECoreScene::VisibleRenderable
 		//! the initial read for metadata.
 		std::shared_ptr<openvdb::io::File> m_file;
 		bool m_unmodifiedFromFile;
-
+		std::vector<std::string> m_gridMask;
 };
 
 IE_CORE_DECLAREPTR( VDBObject )
