@@ -96,7 +96,7 @@ find_package( Threads REQUIRED )
 find_package( ZLIB REQUIRED )
 find_package( TBB REQUIRED )
 find_package( PythonLibs 2.7 REQUIRED )
-find_package( Boost REQUIRED COMPONENTS signals iostreams filesystem date_time wave regex system chrono python )
+find_package( Boost REQUIRED COMPONENTS signals iostreams filesystem date_time wave regex system chrono python timer)
 find_package( IlmBase REQUIRED )
 find_package( OpenEXR REQUIRED )
 find_package( Freetype REQUIRED )
@@ -128,6 +128,7 @@ set( BASE_LIBS
      ${Boost_REGEX_LIBRARY}
      ${Boost_SYSTEM_LIBRARY}
      ${Boost_CHRONO_LIBRARY}
+     ${Boost_TIMER_LIBRARY}
      ${TBB_LIBRARIES}
      ${Ilmbase_HALF_LIBRARY}
      ${Ilmbase_IEX_LIBRARY}
@@ -149,7 +150,7 @@ file( GLOB IECORE_CXX_FILES  ${CORTEX_SOURCE_DIR}/src/IECore/*.cpp )
 file( GLOB IECORE_H_FILES ${CORTEX_SOURCE_DIR}/include/IECore/*.h ${CORTEX_SOURCE_DIR}/include/IECore/*.inl )
 file( GLOB IECORE_PY_FILES ${CORTEX_SOURCE_DIR}/python/IECore/*.py )
 add_library( IECore SHARED ${IECORE_CXX_FILES} ${IECORE_H_FILES} )
-target_link_libraries( IECore )
+target_link_libraries( IECore ${BASE_LIBS})
 # Install
 install( TARGETS IECore DESTINATION lib/ )
 install( FILES ${IECORE_H_FILES} DESTINATION include/IECore )
@@ -167,6 +168,7 @@ if( ${WITH_IECORE_PYTHON} )
     add_library( _IECore MODULE ${CORTEX_SOURCE_DIR}/src/IECorePythonModule/IECore.cpp )
     target_link_libraries( _IECore IECorePython )
     add_dependencies( _IECore IECore IECorePython )
+    set_target_properties( _IECore PROPERTIES PREFIX "" )
     if ( WIN32 )
         set_target_properties( _IECore PROPERTIES SUFFIX ".pyd" )
     endif()

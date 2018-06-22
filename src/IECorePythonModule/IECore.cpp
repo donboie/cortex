@@ -156,6 +156,7 @@
 #include "IECorePython/CancellerBinding.h"
 #include "IECorePython/TaskSchedulerInit.h"
 #include "IECorePython/IndexedIOAlgoBinding.h"
+#include "IECorePython/Profile.h"
 
 #include "IECore/IECore.h"
 
@@ -299,6 +300,7 @@ BOOST_PYTHON_MODULE(_IECore)
 	bindCanceller();
 	bindTaskSchedulerInit();
 	bindIndexedIOAlgo();
+	bindProfile();
 
 	def( "majorVersion", &IECore::majorVersion );
 	def( "minorVersion", &IECore::minorVersion );
