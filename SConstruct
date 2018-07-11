@@ -1445,6 +1445,14 @@ coreEnv.Alias( "install", [ coreLibraryInstall ] )
 coreEnv.Alias( "installCore", [ coreLibraryInstall ] )
 coreEnv.Alias( "installLib", [ coreLibraryInstall ] )
 
+coreDiagnosticEnv = coreEnv.Clone( IECORE_NAME="IECoreDiagnostic" )
+coreDiagnosticEnv.Replace( LIBS = ['dl'] )
+diagnosticSources = sorted( glob.glob( "src/IECoreDiagnostic/*.cpp" ) )
+
+diagnosticLibrary = coreDiagnosticEnv.SharedLibrary( "lib/" + os.path.basename( coreDiagnosticEnv.subst( "$INSTALL_LIB_NAME" ) ), diagnosticSources )
+diagnosticLibraryInstall = coreDiagnosticEnv.Install( os.path.dirname( coreDiagnosticEnv.subst( "$INSTALL_LIB_NAME" ) ) , diagnosticLibrary )
+coreDiagnosticEnv.Alias( "install", [ diagnosticLibraryInstall ] )
+
 # headers
 headerInstall = coreEnv.Install( "$INSTALL_HEADER_DIR/IECore", coreHeaders )
 coreEnv.AddPostAction( "$INSTALL_HEADER_DIR/IECore", lambda target, source, env : makeSymLinks( coreEnv, coreEnv["INSTALL_HEADER_DIR"] ) )
@@ -1490,7 +1498,7 @@ for cls in env['INSTALL_IECORE_OPS'] :
 	stubEnv.Alias( "installCore", stubInstall )
 	stubEnv.Alias( "installStubs", stubInstall )
 
-Default( coreLibrary, corePythonLibrary, corePythonModule )
+Default( coreLibrary, corePythonLibrary, corePythonModule, diagnosticLibrary )
 
 # post installation script
 
